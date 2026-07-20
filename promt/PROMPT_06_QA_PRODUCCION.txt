@@ -1,0 +1,72 @@
+# PROMPT 6/6 — QA, Seguridad y Deploy a Producción
+
+## Contexto
+MVP completo integrado. Antes de fondos reales, necesitamos auditoría de seguridad, QA exhaustivo y deploy seguro a producción.
+
+## Stack
+- Hardhat + Slither + MythX (seguridad)
+- Polygon mainnet
+- Railway / DigitalOcean (infra)
+
+## Qué necesito
+
+### 1. Auditoría de Seguridad
+
+**Static Analysis:**
+- Slither en EscrowMaster.sol — reportar y corregir todas las vulnerabilidades
+- Analizar: reentrancy, unchecked arithmetic, timestamp dependency, tx.origin, delegatecall
+- Reporte en formato markdown
+
+**Chequeo manual:**
+- ¿Hay alguna forma de drenar USDT del contrato?
+- ¿Qué pasa si el OPERATOR keys se comprometen?
+- ¿Qué pasa si OpenBCB webhook llega dos veces (idempotencia)?
+- ¿Qué pasa si el LP retira mientras hay trades activos?
+- ¿Qué pasa si el backend firma un release para un trade que no existe?
+- ¿El time-lock 24h es bypasseable de alguna forma?
+
+**Gas optimization:**
+- Analizar costos de gas de cada función
+- Optimizar: packing de structs, usar uint256 vs smaller
+- Reporte de gas estimado por función
+
+### 2. Tests de Carga
+- 100 trades concurrentes simulados
+- Medir: tiempo promedio por trade
+- Verificar que no hay race conditions
+- Verificar que Redis caching no da datos stale
+
+### 3. Deploy a Polygon Mainnet
+
+**Pre-deploy checklist:**
+- [ ] Slither pasa sin high issues
+- [ ] Todos los tests pasan (30+)
+- [ ] Gas optimizado
+- [ ] Multi-sig configurado para ARBITER role
+- [ ] Treasury wallet lista (multifirma)
+- [ ] .env.production con variables reales
+- [ ] Script de deploy con verificación en Polygonscan
+- [ ] Backup del private key del OPERATOR (sin exponer)
+
+**Post-deploy:**
+- Verificar contrato en Polygonscan
+- Owner renuncia a DEFAULT_ADMIN (transfiere a multi-sig)
+- LP_ADMIN asignado
+- OPERATOR asignado
+- Verificar que pause() funciona
+- Monitoreo con Tenderly o similar
+
+### 4. Monitoreo
+- Sentry para errores del backend
+- Dashboard con trades activos, volumen diario, balance LP
+- Alertas si:
+  - Balance del escrow < umbral
+  - Trade expirado sin release
+  - Webhook falla
+  - Precio P2P cambia >5% en 1h
+
+### 5. Documentación de Seguridad
+- Risks y mitigaciones documentados
+- Procedimiento de emergency pause
+- Plan de rotación de keys del OPERATOR
+- Contact info para reportar vulnerabilidades

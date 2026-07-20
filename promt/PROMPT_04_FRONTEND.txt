@@ -1,0 +1,60 @@
+# PROMPT 4/6 — Frontend Next.js + RainbowKit
+
+## Contexto
+Backend listo. Ahora la interfaz donde el usuario conecta su wallet, ingresa monto, escanea QR y ve la confirmación.
+
+## Stack
+- Next.js 14+ (App Router) + TypeScript
+- Tailwind CSS
+- RainbowKit + wagmi + ethers v6
+- React Query (tanstack query)
+
+## Qué necesito
+
+### Páginas
+
+**1. /comprar (principal)**
+- Conectar wallet (RainbowKit)
+- Input: monto en USDT a comprar
+- Muestra: tasa P2P actual, spread LP, fee plataforma, total BOB
+- Botón "Generar QR"
+- Muestra QR grande (para escanear con app bancaria)
+- Timer de expiración del QR (5-10 min)
+- Estado: Esperando pago... → Pago recibido → USDT en tu wallet
+- Animación de confirmación
+
+**2. /dashboard**
+- Historial de trades del usuario
+- Tabla: Fecha, Monto USDT, Tasa, Estado (Completado/Expirado)
+- Enlace a Polygonscan de cada tx
+
+**3. /lp (protegida, solo LP conectado)**
+- Balance actual del LP en el escrow
+- Tabla de trades activos (locked)
+- Botón "Depositar USDT" (aprueba + deposita)
+- Botón "Retirar" con time-lock countdown
+- Límite diario configurable
+- Gráfico simple de volumen diario
+
+### Componentes reutilizables
+- `WalletStatus` — muestra wallet conectada, balance USDT
+- `QRDisplay` — renderiza QR code, countdown timer
+- `TradeCard` — resumen de trade individual
+- `StatusBadge` — Pending/Locked/Released/Expired con colores
+- `RateDisplay` — desglose de tasa: P2P + spread + fee
+
+### UX/Flujo
+1. User llega a /comprar
+2. Conecta wallet (si no, RainbowKit modal)
+3. Ingresa monto → ve cotización en tiempo real
+4. Click "Comprar USDT" → aparece QR
+5. Escanea QR con app de su banco y paga
+6. Pantalla muestra "Pago recibido ✅" automáticamente
+7. USDT aparece en su wallet en <60s
+
+### Seguridad Frontend
+- Validar inputs client-side y server-side
+- chainId debe ser Polygon (mainnet o testnet)
+- No hardcodear API keys
+- Mostrar siempre dirección del contrato para verificación
+- Mensajes claros en errores

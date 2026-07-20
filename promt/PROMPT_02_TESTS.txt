@@ -1,0 +1,78 @@
+# PROMPT 2/6 — Tests del Smart Contract
+
+## Contexto
+Ya tenemos EscrowMaster.sol desplegable en Polygon. Necesitamos tests unitarios completos que cubran todos los escenarios antes de pasar a producción.
+
+## Stack
+- Hardhat + TypeScript + Chai + Ethers v6
+- Polygon Amoy testnet (o mainnet fork)
+
+## Qué necesito
+
+### Tests en test/EscrowMaster.test.ts
+
+Cubrir los siguientes escenarios:
+
+**1. Depósitos LP**
+- LP deposita USDT ✅
+- Evento DepositLP emitido con valores correctos
+- Revert si deposita 0
+- Revert si no aprobó USDT primero
+
+**2. Lock de Trade**
+- OPERATOR lockea trade exitosamente
+- Lock reduce balance disponible del LP
+- Evento TradeLocked emitido
+- Revert si user=address(0)
+- Revert si amountUSDT=0
+- Revert si amountUSDT excede balance del LP
+- Revert si excede daily limit
+- Revert si contrato paused
+- Revert si caller no es OPERATOR
+
+**3. Release de Trade**
+- Release exitoso: user recibe USDT, treasury recibe fee
+- Trade pasa a Released
+- Evento TradeReleased emitido
+- Revert si trade no está Locked
+- Revert si firma EIP-712 inválida
+- Revert si firma es de otra tradeId
+- Revert si caller no es OPERATOR
+- Revert si contrato paused
+- Prueba de reentrancy (falla gracias a ReentrancyGuard)
+
+**4. Expire de Trade**
+- Expire después del tiempo límite
+- USDT vuelve al LP
+- Evento TradeExpired emitido
+- Revert si trade ya está Released
+- Revert si trade ya está Expired
+- Revert si aún no pasó el tiempo límite
+
+**5. Retiros LP**
+- LP retira USDT no asignado exitosamente
+- Revert si retira más del disponible
+- Revert si retira USDT que está lockeado en trades activos
+- Time-lock 24h se respeta
+- Evento WithdrawLP emitido
+
+**6. Roles y permisos**
+- Solo OPERATOR puede lockear/release
+- Solo LP_ADMIN puede depositar/retirar
+- Solo ARBITER o DEFAULT_ADMIN puede pause/unpause
+- RenounceRole revoca permisos correctamente
+
+**7. Pausa**
+- Pausar: lockTrade revierte
+- Pausar: release revierte
+- Unpausar: operaciones normales reanudadas
+- Evento Paused/Unpaused emitido
+
+**8. Daily Limit**
+- LP establece daily limit
+- Trade que excede el límite revierte
+- Limite se resetea diariamente
+
+### Cobertura mínima: 30+ tests, >90% branch coverage
+
+Usar fixtures con beforeEach, manejar tiempos con evm_increaseTime, pruebas de firma EIP-712 con ethers v6.

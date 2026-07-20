@@ -1,0 +1,64 @@
+# PROMPT 5/6 — Integración End-to-End + Pricing Engine
+
+## Contexto
+Smart contract, backend y frontend existen por separado. Ahora hay que unirlos: flujo completo desde que el usuario ingresa monto hasta que recibe USDT.
+
+## Stack
+- Todo lo anterior + Docker + Railway
+
+## Qué necesito
+
+### 1. Pricing Engine (en backend)
+- Consultar API pública de Binance P2P para tasa USDT/BOB
+- Cachear resultado en Redis (TTL 30s)
+- Calcular: rateFinal = p2pRate + lpSpread(0.5%) + platformFee(0.5%)
+- Endpoint GET /api/quote devuelve desglose completo
+- Fallback: si Binance API falla, usar última tasa cachead
+- Log de todas las cotizaciones para auditoría
+
+### 2. Integración OpenBCB
+- POST /api/qr/generate → crea QR con monto exacto en BOB
+- POST /api/webhook/openbcb → recibe confirmación
+- Verificar HMAC del webhook (viene firmado por OpenBCB)
+- Idempotencia: mismo userOpId no procesa dos veces
+- Timeout: si webhook no llega en 10 min, expirar trade
+
+### 3. Flujo completo integrado
+```
+Frontend                    Backend                      OpenBCB          Contract
+   │                          │                           │                 │
+   │── POST /api/quote ──────>│                           │                 │
+   │<── { rate, fees } ──────│                           │                 │
+   │                          │                           │                 │
+   │── POST /api/qr ─────────>│                           │                 │
+   │                          │── POST /api/qr/generate ─>│                 │
+   │                          │<── { qrCode, qrId } ─────│                 │
+   │                          │── lockTrade() ────────────────────────────>│
+   │<── { qr, tradeId } ─────│                           │                 │
+   │                          │                           │                 │
+   │── [User scans QR] ──────│                           │                 │
+   │    [pays from bank]      │                           │                 │
+   │                          │<── webhook (pago OK) ────│                 │
+   │                          │                           │                 │
+   │                          │── Verifica idempotencia  │                 │
+   │                          │── Firma EIP-712          │                 │
+   │                          │── release(tradeId, sig) ─────────────────>│
+   │                          │                           │                 │
+   │<── { txHash, status } ──│                           │                 │
+   │    USDT en wallet ✅     │                           │                 │
+```
+
+### 4. Docker Compose
+- backend (Node.js)
+- postgres (DB transaccional)
+- redis (caché + rate limiting)
+- docker-compose.yml listo para Railway
+
+### 5. Variables de Entorno
+- .env.example completo con todas las variables
+- Documentar cada variable (qué es, dónde obtenerla)
+
+### 6. Scripts
+- `pnpm dev` — levanta todo local
+- `pnpm test` — corre tests backend
+- `pnpm lint` — linter

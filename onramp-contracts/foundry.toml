@@ -1,0 +1,15 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/"
+]
+
+# Optimizer
+optimizer = true
+optimizer_runs = 200
+
+# EVM version — cancun required by OpenZeppelin 5.x (mcopy opcode)
+evm_version = "cancun"

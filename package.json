@@ -1,0 +1,21 @@
+{
+  "name": "onramp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BOB→USDT Onramp MVP — Non-custodial on-ramp for Polygon",
+  "scripts": {
+    "dev": "docker compose up",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd backend && npm run build && cd ../frontend && npm run build",
+    "test": "cd onramp-contracts && forge test -vv",
+    "test:backend": "cd backend && npm test",
+    "lint": "cd backend && npm run lint",
+    "typecheck": "cd backend && npm run typecheck && cd ../frontend && npx tsc --noEmit",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:generate": "cd backend && npx prisma generate",
+    "deploy:contracts": "cd onramp-contracts && forge script script/DeployEscrow.s.sol --rpc-url $POLYGON_RPC_URL --broadcast --verify"
+  },
+  "keywords": ["onramp", "defi", "usdt", "polygon", "bolivia"],
+  "license": "MIT"
+}

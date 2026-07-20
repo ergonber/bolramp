@@ -1,0 +1,1655 @@
+MANUAL DE INTEGRACIÓN A STEREUM PARA FX
+
+*@Código :ST-SIS-0008
+* @Autor :Ricardo Laredo
+* @Fecha :01/06/2026
+* @Versión: 1.0
+* @Copyright :Stereum
+* @Nivel Confidencial : CONFIDENCIAL
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+TABLA DE CONTROL DE CAMBIOS
+Fecha
+
+Descripción
+
+Revisor
+
+Aprobador
+
+Versión
+
+05/05/2026
+
+Elaboración del documento
+
+Ing. Ricardo
+Laredo
+
+1.0
+
+13/07/2026
+
+Elaboración del documento
+
+Ing. Ricardo
+Laredo
+
+1.1
+
+GLOSARIO.................................................................................................................................. 3
+INTRODUCCIÓN ........................................................................................................................ 5
+CONFIGURACIÓN INICIAL ........................................................................................................ 5
+CREACIÓN DE CUENTA......................................................................................................... 5
+GENERACIÓN DE API KEY...................................................................................................... 5
+INTEGRACIÓN POR API ............................................................................................................. 8
+CONTROL DE ACCESO Y AUTORIZACIÓN ........................................................................... 8
+ESPECIFICACIONES TÉCNICAS ............................................................................................ 8
+RESPUESTA Y MANEJO DE ERRORES.................................................................................... 8
+CONSIDERACIONES DE SEGURIDAD.................................................................................... 9
+:: https://stereum.tech
+
+1
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+INVENTARIO DE APIs ............................................................................................................. 9
+KYC + AML ........................................................................................................................... 10
+API PARA VALIDAR DOCUMENTO ...................................................................................... 11
+API PARA REGISTRAR CLIENTES ......................................................................................... 12
+API PARA LISTAR BANCOS.................................................................................................. 16
+API PARA DECODIFICAR QR ............................................................................................... 17
+API PARA CONSULTAR SALDO ........................................................................................... 19
+API PARA CREAR COTIZACIÓN .......................................................................................... 20
+API PARA CONFIRMAR UNA COTIZACIÓN ........................................................................ 23
+WEBHOOK ............................................................................................................................... 26
+SEGURIDAD EN WEBHOOK ................................................................................................. 30
+
+:: https://stereum.tech
+
+2
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+GLOSARIO
+En el presente documento se utilizarán términos que al no interpretarse de
+manera correcta pudiera no cumplir con su objetivo, motivo por el cual se
+ha preparado el siguiente glosario con el significado adecuado.
+GLOSARIO
+TÉRMINO
+
+DESCRIPCIÓN
+
+Connect
+
+En una conexión socket o http cliente-servidor el Connect Timeout
+
+Timeout
+
+es el máximo tiempo a esperar para establecer la conexión,
+posterior a este tiempo el cliente ya no intenta realizar la conexión.
+Cuando se genera un error de Connect Timeout, no se logra enviar
+la orden al servidor por lo que no debería haber necesidad de
+verificar el procesamiento.
+
+Read Timeout
+
+En una conexión mediante el protocolo http entre un cliente y un
+servidor el Read Timeout, es el tiempo máximo que espera el
+cliente la respuesta del servidor, posterior a este tiempo el cliente
+genera una excepción de Read Timeout.
+Cuando se genera un error de Read Timeout, existe la posibilidad
+de que el servidor haya recibido y procesado la solicitud, por lo
+que se recomienda realizar una verificación.
+
+:: https://stereum.tech
+
+3
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+TLS
+
+El protocolo TLS (Transport Layer Security, seguridad de la capa de
+transporte) es solo una versión actualizada y más segura de SSL.
+Las versiones soportadas son 1.2 y 1.3
+
+Cipher-suite
+
+Conjunto de algoritmos de cifrado que ayudan a asegurar la
+conexión de red.
+
+HMAC
+
+HMAC, que significa “Hash-based Message Authentication Code”
+(Código de Autenticación de Mensajes basado en Hash), es un
+mecanismo de autenticación que utiliza una función hash junto
+con una clave secreta para generar un código de autenticación
+que se añade al mensaje transmitido.
+
+SHA-256
+
+Algoritmo para generar Hash de una cadena cualquiera cuya
+longitud y valor será siempre el mismo para un texto cualquiera.
+Es como obtener la huella digital de un texto.
+
+API KEY
+
+El API KEY es un valor único que identifica a un sistema.
+Stereum Pay, te permite generar varios API KEY para cuantos
+Sistemas se desee y se lo podrá generar desde la consola de
+administración.
+
+Consola
+
+En Stereum Pay, llamamos consola a la aplicación web al que
+acceden los usuarios de la empresa para administrar y gestionar
+sus cobros.
+https://console.stereum.tech
+
+:: https://stereum.tech
+
+4
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+INTRODUCCIÓN
+El presente documento tiene por objeto especificar la integración entre el
+core empresarial y Stereum-Pay por API.
+Stereum, provee el servicio FX (Foreign Exchange) para compra o venta de
+activos digitales.
+
+CONFIGURACIÓN INICIAL
+CREACIÓN DE CUENTA
+Para crear una cuenta en Stereum Pay, debes ingresar al enlace
+https://console.stereum.tech y crear una cuenta con tu dirección de correo
+
+corporativo; en el proceso de creación de cuenta también se pedirá
+información de la empresa.
+
+GENERACIÓN DE API KEY
+En la consola de Stereum Pay, deberá generar un API KEY siguiendo los
+siguientes pasos.
+Paso 1.- Ingrese a la consola de administración de Stereum Pay
+
+:: https://stereum.tech
+
+5
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Dashboard de la consola de administración de Stereum Pay
+
+Paso 2.- Vaya a la sección de “API Key” y pulse el botón de crear uno nuevo
+
+Interfaz de API Key
+
+:: https://stereum.tech
+
+6
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Paso 3.- Ponga el nombre de su sistema, seleccione el tiempo de duración
+del API KEY y los permisos a los APIs que debe poder acceder y pulse el botón
+“Guardar”.
+
+Interfaz para crear API Key
+
+Paso 4.- Guarde el API Key generado de manera segura.
+
+Interfaz que muestra el API Key creado.
+
+:: https://stereum.tech
+
+7
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Nota. Considera agregar una alarma para renovar su API Key, puesto que al
+término de su vencimiento no se podrá extender su vigencia. Pude genera
+
+INTEGRACIÓN POR API
+CONTROL DE ACCESO Y AUTORIZACIÓN
+Para interactuar con nuestra API, es necesario identificar y autorizar su
+aplicación cliente utilizando una API Key. Este token secreto no autentica a
+un usuario final, sino que actúa como un identificador único de su sistema.
+Nos permite validar los permisos otorgados a su integración, gestionar
+cuotas de consumo (rate limiting) y mantener la trazabilidad de las
+operaciones.
+
+ESPECIFICACIONES TÉCNICAS
+La autorización se gestiona a nivel de transporte utilizando cabeceras HTTP
+personalizadas. Su API Key debe inyectarse en cada solicitud enviada al
+servidor con la siguiente estructura:
+•
+
+Header Key: x-api-key
+
+•
+
+Header Value: <TU_API_KEY>
+
+•
+
+Requerido: Sí
+
+RESPUESTA Y MANEJO DE ERRORES
+Si la validación de la identidad del cliente falla, la API abortará la
+transacción y retornará los siguientes códigos de estado HTTP estándar:
+•
+
+401 Unauthorized: La cabecera x-api-key no fue incluida en la petición
+o el formato es incorrecto. (Nota: El estándar HTTP denomina a este
+
+:: https://stereum.tech
+
+8
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+código "Unauthorized", pero semánticamente indica la ausencia de
+credenciales de identificación válidas).
+•
+
+403
+
+Forbidden:
+
+La
+
+cabecera
+
+fue
+
+enviada,
+
+pero
+
+la
+
+API
+
+Key
+
+proporcionada es inválida, se encuentra revocada o el sistema
+cliente carece de los privilegios necesarios para ejecutar la acción
+sobre el recurso solicitado.
+
+CONSIDERACIONES DE SEGURIDAD
+•
+
+Cifrado en tránsito (TLS/HTTPS): Todas las solicitudes deben realizarse
+estrictamente a través de canales seguros. Cualquier petición
+enviada mediante HTTP plano será rechazada automáticamente
+para prevenir la intercepción de credenciales.
+
+•
+
+Custodia del Secreto: Su API Key autoriza acciones financieras y
+operativas en nombre de su plataforma. Nunca la exponga en
+repositorios de código público, ni la incruste directamente en
+aplicaciones del lado del cliente (como aplicaciones móviles o
+aplicaciones web tipo SPA) donde pueda ser extraída. Debe
+administrarse exclusivamente como una variable de entorno en su
+backend o a través de un gestor de secretos (Vault, Secret Manager,
+etc.).
+
+INVENTARIO DE APIs
+Stereum Pay dispone de los siguientes APIs para la integración.
+URL Base: https://api.stereum.tech
+API
+
+:: https://stereum.tech
+
+ENDPOINT
+
+9
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+API para validar
+
+POST /api/v1/segip/validate
+
+la identidad con
+SEGIP
+API para crear
+cliente
+
+POST /api/v1/customers/create
+
+API para listar
+los Bancos
+
+GET /api/v1/banks
+
+API para
+decodificar QR
+
+POST /api/v1/transfers/decode-qr
+
+API para
+consultar saldo
+disponible
+
+POST
+
+API para crear
+una cotización
+
+POST /api/v1/otc/quotes
+
+API para
+confirmar la
+
+POST /api/v1/otc/orders
+
+/api/v1/business-accounts/{ACCOUNT_ID}/available-
+
+balance
+
+cotización
+
+KYC + AML
+Como prerrequisito para la integración, el sistema integrador debe
+garantizar que todo Usuario Final que interactúe con los servicios de
+Stereum haya superado un proceso formal de KYC (Conocimiento del
+Cliente). Asimismo, es obligatorio realizar comprobaciones continuas de
+AML (Prevención de Lavado de Activos), incluyendo el cruce contra listas
+restrictivas (OFAC, ONU, etc.) y la identificación de perfiles PEP (Personas
+Expuestas Políticamente). Los registros, logs y evidencias documentales de
+:: https://stereum.tech
+
+10
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+estos análisis deberán ser almacenados de forma segura y estar
+disponibles de manera inmediata ante cualquier requerimiento de por
+parte de Stereum.
+
+API PARA VALIDAR DOCUMENTO
+Este API sirve para validar los datos de un documento de identidad, al igual
+que en los otros servicios se debe enviar el API KEY en la cabecera del
+request.
+Construcción del request:
+
+End point
+
+POST
+/api/v1/segip/validate
+
+Request
+
+{
+"givenNames": "JUAN",
+"surname1": "PEREZ",
+"surname2": "MEDINA",
+"birthdate": "20/01/2001",
+"dniType": "CI", // CI, CE
+"documentNumber": "7799357",
+"complementNumber": null
+}
+
+Response 200
+
+{
+"fields": {
+"givenNames": "CORRECT",
+"surname1": "CORRECT",
+"surname2": "CORRECT",
+"birthdate": "CORRECT",
+"dniType": null,
+"documentNumber": "CORRECT",
+
+:: https://stereum.tech
+
+11
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"complementNumber": "CORRECT"
+},
+"status": "VERIFIED",
+"validationId": null
+}
+
+Response 200
+
+{
+"status": "PARTIALLY_INCORRECT",
+"fields": {
+"givenNames": "CORRECT",
+"surname1": "INCORRECT",
+"surname2": "NOT_VERIFIED",
+"documentNumber": "CORRECT",
+"complementNumber": "CORRECT",
+"birthdate": "INCORRECT"
+},
+"validationId": 146
+}
+
+Response 200
+
+{
+"status": "OBSERVED_RECORD",
+"fields": null,
+"validationId": 2523
+}
+
+Response 200
+
+{
+"status": "NOT_FOUND",
+"fields": null,
+"validationId": 148
+}
+
+Response 503
+
+{
+"title": "SEGIP services unavailable",
+"status": 503,
+"detail": "Unsuccessful SEGIP Service Response"
+}
+
+API PARA REGISTRAR CLIENTES
+Este API sirve para registrar los datos adicionales para cumplimiento con el
+regulador.
+:: https://stereum.tech
+
+12
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Stereum realizará la validación de existencia en función del Número de
+documento.
+Lista de los departamentos de acuerdo con código ISO- 3166-2
+CODIGO
+
+DESCRIPCION
+
+BO_B
+
+Beni
+
+BO_C
+
+Cochabamba
+
+BO_H
+
+Chuquisaca
+
+BO_L
+
+La Paz
+
+BO_O
+
+Oruro
+
+BO_N
+
+Pando
+
+BO_P
+
+Potosí
+
+BO_S
+
+Santa Cruz
+
+BO_T
+
+Tarija
+
+Lista de income_level (Lista parametrizable)
+Ingresos Mensuales
+Menos de $500
+$500 – $1,000
+$1,000 – $2,000
+$2,000 – $5,000
+Más de $5,000
+
+Descripción
+Ingresos muy bajos
+Ingresos bajos
+Ingresos medios
+Ingresos altos
+Ingresos muy altos
+
+Lista de economic_activity
+Actividad Económica
+Comercio minorista (tiendas, ventas online, bazares)
+Comercio mayorista (distribución de productos, importación/exportación)
+Servicios profesionales (abogados, contadores, consultores)
+Transporte y logística (taxi, delivery, transporte de carga)
+Construcción y obras civiles
+Industria y manufactura (fábricas, talleres)
+:: https://stereum.tech
+
+13
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Agricultura, ganadería o pesca
+Educación y capacitación (profesores, cursos, institutos)
+Salud y bienestar (médicos, clínicas, farmacias, gimnasios)
+Tecnología y software (desarrollo, soporte, ciberseguridad)
+Gastronomía (restaurantes, cafeterías, food trucks)
+Turismo y hotelería (hoteles, agencias, guías)
+Arte, cultura y entretenimiento
+Finanzas, seguros o inversiones
+Otros (especificar)
+
+Construcción del request:
+
+End point
+
+POST
+/api/v1/customers/create
+
+Request
+
+{
+"name":"Ricardo",
+"lastname":"Laredo",
+"document_type":"CI",
+"document_number":"77009356",
+"country":"BO",
+"state_of_residence":"BO_S",
+"economic_activity":"Desarrollo informatica",
+"source_of_funds":"Trabajo en el extranjero",
+"destination_of_funds":"Pago de servicios en el extranjero",
+"income_level":"500 - 1000",
+"doc_provider_id":"SEIP-003",
+"idempotency_key":"CLI-001"
+}
+
+Response 201
+
+{
+"id": "4a475121-b7e1-49e2-8f7b-789f5adadd04",
+"name": "Ricardo",
+"lastname": "Laredo",
+"country": "BO",
+
+:: https://stereum.tech
+
+14
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"document_type": "CI",
+"document_number": "77009357",
+"state_of_residence": "BO_S",
+"source_of_funds": "Trabajo en el extranjero",
+"destination_of_funds": "Pago de servicios en el extranjero",
+"contracted_services": "QR",
+"income_level": "500 - 1000"
+}
+
+Response 400
+
+{
+"timestamp": "2025-09-04T18:04:32.077-04:00",
+"status": 400,
+"error": "Bad Request",
+"message": "Ya existe el cliente",
+"path": "/api/v1/customers/create"
+}
+
+NRO.
+1
+2
+3
+
+CAMPO
+name
+lastname
+document_type
+
+4
+5
+6
+7
+
+document_number
+country
+state_of_residence
+economic_activity
+
+8
+
+source_of_funds
+
+9
+
+Una descripción del destino de los fondos
+destination_of_funds en texto escrito por el usuario
+
+60
+
+10
+
+income_level
+
+60
+
+:: https://stereum.tech
+
+DESCRIPCIÓN
+Nombre del usuario
+Apellido del usuario
+CI como valor por defecto
+CE Carnet extranjero
+PASSPORT cuando el usuario presenta el
+número de pasaporte
+Número de documento del usuario
+BO como valor por defecto
+Código del departamento en el que reside
+Actividades económicas a la que se
+dedican el usuario. Considerar que el
+usuario debe seleccionar de una lista, el
+mismo debe estar parametrizado y que
+pueda ser actualizado en caso que el
+regulador nos solicite agregar o modificar la
+lista.
+Una descripción del origen de los fondos,
+en texto escrito por el usuario.
+
+Niveles de ingreso, de una lista
+seleccionable con una escala de ingreso.
+Considere que la lista debe ser
+
+LONGITUD
+100
+100
+8
+
+20
+2
+5
+200
+
+60
+
+15
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+11
+12
+
+doc_provider_id
+idempotency_key
+
+parametrizable en caso de que el regulador
+nos solicite agregar o modificar los valores.
+Identificador de la verificación de los datos
+del usuario con SEGIP. Si el documento es
+boliviana
+Identificador único del usuario en sistema
+de la empresa.
+
+20
+50
+
+API PARA LISTAR BANCOS
+El siguiente API es para listar las entidades financieras habilitados para realizar
+transferencias en Bolivia.
+Construcción del request:
+
+End point
+
+GET
+/api/v1/banks?country=BO
+
+Response 200
+
+[
+{
+"type": "BANECO",
+"code": "1016",
+"description": "BANCO ECONOMICO S.A.",
+"icon": "https://console.stereum.tech/image/1016.png"
+},
+{
+"type": "BCP",
+"code": "1005",
+"description": "BANCO DE CREDITO DE BOLIVIA S.A.",
+"icon": "https://console.stereum.tech/image/1005.png"
+},
+{
+"type": "BFO",
+"code": "1034",
+"description": "BANCO FORTALEZA S.A.",
+"icon": "https://console.stereum.tech/image/1034.png"
+},
+]
+
+:: https://stereum.tech
+
+16
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Response 400
+
+{
+"timestamp": "2025-08-05T15:15:00.938-04:00",
+"status": 400,
+"error": "Bad Request",
+"message": "No se encontró lista de bancos",
+"path": "/api/v1/banks"
+}
+
+Response 500
+
+{
+"timestamp": "2025-08-05T15:15:00.938-04:00",
+"status": 500,
+"error": "Internal Error,
+"message": "Error interno",
+"path": "/api/v1/banks"
+
+API PARA DECODIFICAR QR
+Este API permite decodificar un QR de pago del sistema financiero
+boliviano
+Nota.
+En la cabera de la petición debe ir los tres valores:
+
+•
+
+x-api-key.- API KEY generado en la consola de administración.
+
+Construcción del request:
+
+En POST /api/v1/transfers/decode-qr
+d
+p
+oi
+nt
+Re
+q
+
+{
+"qrs":"K6AEx9BgdJHPb3CfWLKYU9XhoSIRJvRX9Hw2YHvdxh+69VvwWShr7ZMCugnOObeTYerXkSgi89EyrNTxFaq0
+G4lp8otos6BBivkIMrV3z5OB/AEYhKKSfen+J+lzhaaf1N3zwjN1Skc6xAwxj263CxyDimn/QxFyG8MiaCtN5eFnNdhJUy
+Bfxa73L+B77EohKZaT7mJbh0jSIK8oZpdvlH2Thz0xIEz6FbnumY8nLNYYBRR8+bRtLzz7yhqxaKlI9frYOLT8hQnZvDJRJY
+uRm/bF81vcwLZKD4lqA1EsXd2ue3oUR5lPjFsKfMYZnGqOl7gRwP+9f7PqjfXrWrWQJw==|1c8618ba4382fb49"
+
+:: https://stereum.tech
+
+17
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+ue
+
+}
+
+st
+Re
+sp
+o
+ns
+e
+20
+0
+
+Re
+sp
+o
+ns
+e
+40
+
+{
+"id": "250801MLD30460000239",
+"document_number": "45645645645",
+"destination_name": "JUAN PEREZ",
+"bank_code": "3046",
+"bank_name": null,
+"account_number": "1215103050",
+"account_type": "CA",
+"currency": "BOB",
+"amount": 101.99,
+"description": "Cobra por la compra de zapa",
+"expiration_date": "2025-08-30",
+"single_use": false
+}
+
+{
+"timestamp": "2025-10-17T15:30:29.330-04:00",
+"status": 400,
+"error": "Bad Request",
+"message": "DECODE_QR - Error inesperado al procesar la solicitud",
+"path": "/api/v1/transfers/decode-qr"
+}
+
+0
+Re
+sp
+o
+ns
+e
+50
+0
+
+{
+"timestamp": "2025-10-17T15:30:29.330-04:00",
+"status": 500,
+"error": "Internal error",
+"message": "Error interno",
+"path": "/api/v1/transfers/decode-qr"
+}
+
+:: https://stereum.tech
+
+18
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+API PARA CONSULTAR SALDO
+Este API serive para consultar saldo de una cuenta empresarial, el
+identificador de la cuenta debe solicitarlo a Stereum.
+Construcción del request:
+
+End point
+
+GET
+/api/v1/business-accounts/{ACCOUNT_ID}/available-balance
+
+Request
+
+En el campo {ACCOUNT_ID} de la url reemplazar con el
+identificador de la cuenta retornado. Este valor se debe solicitar
+a los administradores de Stereum.
+
+Response 200
+
+{
+"id": "e49c008f-8e8c-4a2b-ba77-23b6d3793365",
+"accountAddress": "30460159948496",
+"accountType": "FIAT",
+"currency": "BOB",
+"network": "CSL",
+"principal": false,
+"status": "ACT",
+"balance": 999.7500000000,
+"availableBalance": 999.7500000000,
+"reservedAmount": 0,
+"commissionPendingAmount": 0,
+"heldCollateralAmount": 0,
+"networkCode": "MLD3046",
+"networkName": "COOPERATIVA DE AHORRO Y CREDITO ABIERTA LA SAGRADA FAMILIA
+R.L."
+}
+
+Response 400
+
+{
+"timestamp": "2025-09-04T18:04:32.077-04:00",
+"status": 400,
+"error": "Bad Request",
+"message": "Error al crear cuenta",
+
+:: https://stereum.tech
+
+19
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"path": "/api/v1/business-accounts/{ACCOUNT_ID}/available-
+
+balance”
+}
+
+API PARA CREAR COTIZACIÓN
+Stereum soporta dos operaciones: Compra (Buy) o Venta (Sell) de activos
+digitales y para cada operación se debe realizar una cotización(quote).
+Construcción del request para compra de activos digitales:
+
+End point
+
+POST /api/v1/otc/quotes
+
+Request
+
+{
+"externalUserId": "CLI-003",
+"side": "BUY",
+"inputAmount": 100.00,
+"inputCurrency": "BOB",
+"outputCurrency": "USDT",
+"country": "BO"
+}
+
+Response
+
+{
+"id": "da08e4bb-bfa9-4ef7-bf20-d6490c8bda62",
+"pair": "BOB_USDT",
+"side": "BUY",
+"inputAmount": 100.00,
+"inputCurrency": "BOB",
+"outputAmount": 9.34,
+"outputCurrency": "USDT",
+"exchangeRate": 10.5606000000,
+"serviceFee": 1.40,
+"feeDetails":
+"[{\"concept\":\"Comisión
+BUY\",\"calculation\":\"1.40%\",\"amount\":1.40,\"currency\":\"BOB\"}]",
+
+201
+
+:: https://stereum.tech
+
+20
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"feeCurrency": "BOB",
+"expireAt": 1784050146758,
+"expiresInSeconds": 299
+}
+Response
+400
+
+{
+"code": "ERR_LOW_AMOUNT",
+"message": "El monto ingresado es menor a la tarifa que cobra la red
+(Gas/Fee). Por favor, intenta con un monto mayor.",
+"timestamp": 1784052606836
+}
+
+Construcción del request para venta de activos digitales:
+
+End point
+
+POST /api/v1/otc/quotes
+
+Request
+
+{
+"externalUserId": "CLI-003",
+"side": "SELL",
+"inputAmount": 100.00,
+"inputCurrency": "USDT",
+"outputCurrency": "BOB",
+"country": "BO"
+}
+
+Response {
+"id": "bb94b7be-f8a4-4962-af55-52e4c88a8c04",
+201
+"pair": "USDT_BOB",
+"side": "SELL",
+"inputAmount": 100.00,
+"inputCurrency": "USDT",
+"outputAmount": 1036.24,
+"outputCurrency": "BOB",
+"exchangeRate": 10.5095000000,
+:: https://stereum.tech
+
+21
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"serviceFee": 1.40,
+"feeDetails":
+"[{\"concept\":\"Comisión
+SELL\",\"calculation\":\"1.40%\",\"amount\":1.40,\"currency\":\"USDT\"}]",
+"feeCurrency": "USDT",
+"expireAt": 1784052937822,
+"expiresInSeconds": 299
+}
+Response {
+"code": "ERR_LOW_AMOUNT",
+400
+"message": "El monto ingresado es menor a la tarifa que cobra la red
+(Gas/Fee). Por favor, intenta con un monto mayor.",
+"timestamp": 1784052661469
+}
+
+NRO.
+1
+
+CAMPO
+externalUserId
+
+2
+
+side
+
+3
+
+inputAmount
+
+4
+
+inputCurrency
+
+inputNetwork
+5
+
+outputCurrency
+
+DESCRIPCIÓN
+Identificador del cliente o usuario en el
+sistema del usuario o el ID del cliente en
+Stereum
+BUY o SELL dependiendo de lo que
+requiera.
+Importe para comprar o vender donde el
+separador de decimales es el punto(.)
+En el escenario de compra (BUY) el valor
+siempre será BOB.
+En escenario de venta (SELL), el valor
+deberá ser USDT o USDC, este último
+depende de la disponibilidad de la
+plataforma.
+El valor por defecto de este campo es:
+• Para BUY es CSL
+• Para SELL es POLYGON
+En el escenario de compra (BUY), el
+sistema siempre entregará en USDT o
+USDC.
+
+LONGITUD
+36
+100
+
+4
+
+5
+
+En el escenario de Venta (SELL), el valor
+de este campo siempre será BOB.
+:: https://stereum.tech
+
+22
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+6
+
+outputNetwork
+
+7
+
+country
+
+El valor por defecto de este campo es:
+• Para BUY es POLYGON
+• Para SELL es CSL
+BOB por defecto
+
+3
+
+API PARA CONFIRMAR UNA COTIZACIÓN
+Para confirmar una cotización se debe llamar a esta con API con los
+siguientes criterios:
+•
+
+Para el escenario de compra el sistema requiere saber la dirección
+de billetera, red (por defecto POLYGON).
+
+•
+
+Para el escenario de venta el sistema necesita saber la cuenta,
+Banco, número de documento y nombre del titular que recibirá los
+fondos.
+
+Construcción del request para confirmar una cotización de compra de activos
+digitales:
+
+End point
+
+POST /api/v1/otc/quotes
+
+Request
+
+{
+"idempotencyKey":"31191264-0493-4a4b-b09e-a71ef9d01452",
+"quoteId": "99004a11-979b-4a08-8b0c-e61053592e65",
+"outputNetwork": "POLYGON",
+"outputAccountAddress":
+"0x09477842cbb.......2b0f2b1fb074b862b5"
+}
+
+Response 201
+
+{
+"id": "aaf8f091-4bf3-49d6-8a3a-2b7acba58c27",
+"quoteId": "99004a11-979b-4a08-8b0c-e61053592e65",
+"side": "BUY",
+"status": "PENDIENTE",
+
+:: https://stereum.tech
+
+23
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"outputAmount": 9.3300000000,
+"outputCurrency": "USDT",
+"outputNetwork": "POLYGON",
+"paymentInstructions": {
+"amount": 100.00,
+"currency": "BOB",
+"network": "CSL",
+"qrBase64": ".....",
+"expiresAt": 1784053307225,
+"expiresInSeconds": 1784053307
+},
+"createdAt": 1784053247203,
+"transactionId": "a2ee89e6-17cd-4b14-aadf-de3b19242fe3",
+"manual": false
+}
+
+Construcción del request para confirmar cotización de venta de activos digitales:
+
+End point
+
+POST /api/v1/otc/quotes
+
+Request
+
+{
+"idempotencyKey":"809189be-75d4-4444-8652-ee52330737e4",
+"quoteId": " f5efed13-e315-49a9-9269-4e374948cd15",
+"outputAccountAddress": "876543345",
+"outputAccountDocNumber": "7700936",
+"outputAccountOwnerName": "Ricardo Laredo",
+"outputNetwork": "BGA"
+}
+
+Response 201
+
+{
+"id": "0444f507-f3c4-4523-b700-79008c49e9c3",
+
+:: https://stereum.tech
+
+24
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+"quoteId": "f5efed13-e315-49a9-9269-4e374948cd15",
+"side": "SELL",
+"status": "PENDIENTE",
+"outputAmount": 1037.2200000000,
+"outputCurrency": "BOB",
+"outputNetwork": "BGA",
+"paymentInstructions": {
+"amount": 100.00,
+"currency": "USDT",
+"network": "POLYGON",
+"depositAddress": "904b634b-4c7e-411b-b67c-6229c0c64379",
+"qrBase64": ".......",
+"expiresAt": 1784053517826,
+"expiresInSeconds": 1784053517
+},
+"createdAt": 1784053457813,
+"transactionId": "d30810bc-83b5-407e-a94d-759dc29c0573",
+"manual": false
+}
+
+Response 400
+
+{
+"code": "QUOTE_CONSUMED",
+"message": "Cotización ya utilizada",
+"timestamp": 1784124856694
+}
+
+Response 400
+
+{
+"code": "QUOTE_EXPIRED",
+"message": "Cotización expirado",
+"timestamp": 1784125262448
+}
+
+:: https://stereum.tech
+
+25
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+NRO.
+1
+
+CAMPO
+idempotencyKey
+
+2
+
+quoteId
+
+3
+
+outputAccountAddress
+
+4
+
+outputAccountDocNumber
+
+5
+
+outputAccountOwnerName
+
+6
+
+outputNetwork
+
+DESCRIPCIÓN
+Identificador único de la orden en el
+sistema.
+Identificador de la cotización que
+quiere confirmar. Este valor es
+retornado por Stereum al crear una
+cotizacion.
+Dirección de billetera en blockchain o
+cuenta bancaría donde recibirá los
+fondos.
+Número de documento del titular de
+la cuenta para cuando la operación
+es venta de activos (SELL).
+Nombre del titular de la cuenta para
+cuando es una operación de venta de
+activos (SELL).
+El valor de este campo es el
+siguiente:
+• Para venta (SELL), se debe
+colocar la abreviatura de la
+entidad financiera a la que
+pertenece la cuenta, este
+valor lo obtendrá del API de
+Bancos.
+• Para compra (BUY) el valor
+debe ser siempre POLYGON.
+
+LONGITUD
+36
+36
+
+20
+
+WEBHOOK
+Stereum Pay notifica en tiempo real por Webhook al core de la empresa con
+los cambios de estado de la transferencia. Para ello debe configurar en la
+consola de administración para cada API KEY una URL de Webhook
+siguiendo los siguientes pasos:
+1.
+
+Diríjase al API KEY que creo para la integración y pulse en el registro.
+
+:: https://stereum.tech
+
+26
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+2. Ubique el segmento de webhook.
+
+3. Coloque la url de su webhook y automáticamente el sistema validará si el
+weobhook existey si es válido.
+
+:: https://stereum.tech
+
+27
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+4. Si se logra consumir validarse de manera correcta la url, el sistema le
+mostrará la opción de guardar.
+
+:: https://stereum.tech
+
+28
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+En el proceso de validación de la url de webhook, el sistema le enviará por método
+post el siguiente objeto json.
+{
+
+"notification_type":
+
+"test",
+
+"hello":
+
+"world"
+
+"notification":
+},
+
+"id":
+}
+
+"timestamp":
+
+{
+
+"352c7468-f040-4c50-b274-de0475b13e96",
+1748227866831
+
+Al igual que cualquier notificación se enviará con todas las medidas de
+seguridad explicadas en la sección de Seguridad en Webhook.
+Algo a tomar en cuenta en el objeto json de prueba es el tipo de notificación
+que tiene valor “test”, esto indica que es una notificación de prueba, por
+ende, en la lógica de implementación se recomienda verificar si el tipo de
+notificación tiene el valor de “test”, si es así se debe interrumpir el flujo y
+retornar cualquier objeto json con código http 200.
+Pseudocódigo de ejemplo
+Public string webhookStereum(String request){
+x_signature = obtenerCabecera(“x-signature”);
+x_timestamp = obtenerCabecera(“x-timestamp”);
+if(!validarFirma(request, x_signature)) {
+Retorna 403;
+}
+if(validarTiempoValidez(timestamp) {
+Retorna 403;
+}
+If(request.notificationType == “test”) {
+Returna cualquierObjetoJson();
+}
+If(request.notificationType == “transaction”) {
+ProcesarNotificacion(request);
+Retornar cualquierObjetoJson();
+}
+}
+
+:: https://stereum.tech
+
+29
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+Estructura del JSON para la notificación por webhook.
+{
+
+"notification_type": "order",
+
+"id": "94f281b0-72a7-4108-b762-f058f839a889",
+"timestamp": 1784125462016,
+"order": {
+"input_amount": 100,
+
+"status_description": "Cancelada",
+"side": "BUY",
+"exchange_rate": 10.6807,
+
+"output_currency": "USDT",
+"output_amount": 9.23,
+
+"id": "61a39347-03b9-4d7e-a41b-c6aff17c9b58",
+"created_date": 1784125400086,
+"input_currency": "BOB",
+"pair": "BOB_USDT",
+
+}
+
+}
+
+"status": "CANCELADA"
+
+Recibirá una notificación cuando la orden se haya completado, cancelado
+o cuando se haya generado error.
+
+SEGURIDAD EN WEBHOOK
+Para garantizar que el mensaje no pueda ser interceptado y modificado;
+Stereum Pay, cada vez que envía un POST, firma el JSON con el algoritmo
+HmacSHA256 y el SECRET KEY como llave, el resultado de la firma envía en
+la cabecera del request con el nombre x-signature. Igualmente, envía la
+hora actual transformado en segundos en la cabecera x-timestamp.
+La firma resultante siempre será única para cada petición, por lo que el
+Sistema Core cuando reciba el JSON del request, debe generar su propia
+:: https://stereum.tech
+
+30
+
+MANUAL DE INTEGRACIÓN A STEREUM PAY
+PARA SERVICIO FX
+
+ST-SIS-0008
+
+VER. 1.1
+
+CONFIDENCIAL
+
+firma con el API KEY y comparar la firma generada con la recibida en la
+cabecera x-signature, sólo si ambas firmas son iguales se debe procesar
+la notificación,
+
+caso contrario, se debe retornar el código http
+
+403(Forbidden)
+Igualmente se debe calcular el tiempo transcurrido desde que Stereum Pay
+envió la petición hasta que se recibió en función a la cabera x-timestamp,
+si ha pasado más de dos minutos se recomienda retornar un código de
+error 403(Forbidden).
+
+:: https://stereum.tech
+
+31
+
+

@@ -1,0 +1,82 @@
+# PROMPT 3/6 — Backend Node.js + TypeScript + OpenBCB
+
+## Contexto
+Smart contract EscrowMaster ya listo y testeado. Ahora necesitamos el backend que orquesta: calcula tasa P2P, genera QR vía OpenBCB, recibe webhook de pago, firma y envía release al contrato.
+
+## Stack
+- Node.js + TypeScript + Express
+- PostgreSQL + Redis
+- Ethers v6 (interactuar con contrato)
+- API Binance P2P (tasa USDT/BOB)
+- API OpenBCB (QR bancario Bolivia)
+
+## Qué necesito
+
+### Estructura del proyecto
+```
+backend/
+├── src/
+│   ├── index.ts
+│   ├── config/
+│   │   └── env.ts          # variables de entorno tipadas
+│   ├── routes/
+│   │   ├── quote.ts         # GET /api/quote
+│   │   ├── qr.ts            # POST /api/qr
+│   │   ├── webhook.ts       # POST /api/webhook/openbcb
+│   │   ├── trade.ts         # GET /api/trade/:id
+│   │   └── lp.ts            # POST /api/lp/deposit, GET /api/lp/balance
+│   ├── services/
+│   │   ├── pricing.ts       # Obtiene P2P rate de Binance API
+│   │   ├── openbcb.ts       # Cliente OpenBCB (generar QR, consultar estado)
+│   │   ├── escrow.ts        # Interactuar con EscrowMaster contract
+│   │   └── signer.ts        # Firmar EIP-712 con private key del OPERATOR
+│   ├── middleware/
+│   │   ├── auth.ts          # API Key + JWT
+│   │   ├── rateLimit.ts
+│   │   └── errorHandler.ts
+│   ├── models/
+│   │   └── trade.ts         # Modelo PostgreSQL con Prisma o TypeORM
+│   └── types/
+│       └── index.ts
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+### Endpoints
+
+**GET /api/quote?amount=100**
+- Calcula: Binance P2P rate + 0.5% LP spread + 0.5% platform fee
+- Responde: { amountUSDT, amountBOB, rate, lpSpread, platformFee, expiresAt }
+
+**POST /api/qr**
+- Body: { userWallet, amountUSDT, quoteId }
+- Lockea trade en contrato (llama a lockTrade)
+- Genera QR vía OpenBCB API
+- Responde: { qrCode (base64), qrData, tradeId, expiresAt }
+
+**POST /api/webhook/openbcb**
+- Recibe notificación de OpenBCB (pago confirmado)
+- Verifica idempotencia (userOpId ya existe en DB)
+- Firma mensaje EIP-712
+- Envía release() al contrato
+- Responde 200 OK a OpenBCB
+
+**GET /api/trade/:id**
+- Estado del trade desde DB + contrato
+
+**POST /api/lp/deposit**
+- LP firma para depositar USDT al escrow
+
+**GET /api/lp/balance**
+- Balance disponible, lockeado, total
+
+### Seguridad
+- Private key del OPERATOR solo en env var, NUNCA en código
+- Rate limiting por IP y por wallet
+- Idempotencia: userOpId único evita doble release
+- Logs estructurados con nivel (info, warn, error)
+- Sentry para monitoreo de errores
+- Helmet + CORS configurado
+- Validación de inputs con Zod
+- Webhook firmado (verificar que viene de OpenBCB real)

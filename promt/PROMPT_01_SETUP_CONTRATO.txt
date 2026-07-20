@@ -1,0 +1,75 @@
+# PROMPT 1/6 — Setup + Smart Contract EscrowMaster
+
+## Contexto
+Onramp automático no-custodial BOB → USDT en Polygon. Usuario paga con QR bancario, recibe USDT en su wallet. Nosotros nunca custodiamos fondos.
+
+## Stack
+- Solidity 0.8.x + OpenZeppelin + Hardhat
+- Deploy en Polygon testnet (Amoy) y mainnet
+- Red: Polygon (EVM, PoS)
+
+## Qué necesito que hagas
+
+### 1. Setup del proyecto Hardhat
+- Inicializar proyecto Hardhat con TypeScript
+- Instalar dependencias: OpenZeppelin Contracts, Hardhat Toolbox, dotenv, chai, etc.
+- Configurar hardhat.config.ts con Polygon Amoy y mainnet
+- Crear .env.example con PRIVATE_KEY_OPERATOR, PRIVATE_KEY_LP, POLYGON_RPC_URL, ETHERSCAN_API_KEY
+
+### 2. EscrowMaster.sol — Contrato principal
+
+**Roles:**
+- LP_ADMIN: deposita USDT, recibe BOB, retira con time-lock 24h
+- OPERATOR: backend firma liberaciones vía EIP-712
+- ARBITER: multi-sig 2-of-3 para disputas
+
+**Structs:**
+```solidity
+TradeStatus { Pending, Locked, Released, Expired }
+
+struct Trade {
+    address user;
+    address lp;
+    uint256 amountUSDT;
+    uint256 amountBOB;
+    uint256 platformFee;
+    uint256 createdAt;
+    TradeStatus status;
+    bytes32 userOpId; // idempotencia
+}
+```
+
+**Funciones:**
+- `depositUSDT(uint256 amount)` — LP deposita USDT aprobados previamente
+- `lockTrade(address user, uint256 amountUSDT, uint256 amountBOB, uint256 platformFee, bytes32 userOpId)` — OPERATOR bloquea USDT del LP, crea Trade
+- `release(uint256 tradeId, bytes calldata signature)` — verifica firma EIP-712 del OPERATOR, libera USDT al user, fee al treasury
+- `expireTrade(uint256 tradeId)` — expira si no se confirma pago en tiempo límite
+- `withdrawLP(uint256 amount)` — LP retira USDT no asignado, respeta time-lock 24h
+- `setDailyLimit(uint256)` — límite diario de exposición por LP
+- `pause()` / `unpause()` — emergency stop
+
+**Seguridad obligatoria:**
+- ReentrancyGuard (OpenZeppelin)
+- EIP-712 para firmas (typed structured data)
+- Pausable (OpenZeppelin)
+- SafeERC20 para USDT
+- Eventos en cada acción: TradeLocked, TradeReleased, TradeExpired, DepositLP, WithdrawLP
+- Modifier onlyRole() para cada rol
+- maxFee configurable ≤ 5%
+
+### 3. Scripts de deploy
+- deploy_amoy.ts — deploy a Polygon Amoy testnet
+- deploy_mainnet.ts — deploy a Polygon mainnet
+- Ambos scripts deben verificar el contrato en Polygonscan
+
+### 4. Archivos de salida esperados
+- contracts/EscrowMaster.sol
+- contracts/interfaces/IEscrowMaster.sol
+- test/EscrowMaster.test.ts (al menos el esqueleto)
+- scripts/deploy_amoy.ts
+- scripts/deploy_mainnet.ts
+- hardhat.config.ts
+- .env.example
+- package.json
+
+Seguridad es prioridad #1. Este contrato manejará USDT real.

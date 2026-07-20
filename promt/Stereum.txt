@@ -1,0 +1,198 @@
+================================================================================
+STEREUM - MANUAL DE INTEGRACIÓN A STEREUM PARA FX
+Código: ST-SIS-0008 | Versión: 1.1 | Fecha: 13/07/2026
+Autor: Ing. Ricardo Laredo | Nivel: CONFIDENCIAL
+================================================================================
+
+TABLA DE CONTROL DE CAMBIOS
+--------------------------------------------------------------------------------
+05/05/2026 | Elaboración del documento (V1.0) | Revisor/Aprobador: Ing. Ricardo Laredo
+13/07/2026 | Actualización del documento (V1.1) | Revisor/Aprobador: Ing. Ricardo Laredo
+--------------------------------------------------------------------------------
+
+TABLA DE CONTENIDO:
+1. GLOSARIO
+2. INTRODUCCIÓN
+3. CONFIGURACIÓN INICIAL
+   - Creación de cuenta
+   - Generación de API Key
+4. INTEGRACIÓN POR API
+   - Control de acceso y autorización
+   - Especificaciones técnicas
+   - Respuesta y manejo de errores
+   - Consideraciones de seguridad
+5. INVENTARIO DE APIS
+6. KYC + AML
+7. ENDPOINTS Y ESPECIFICACIONES TÉCNICAS
+   - API para validar documento (SEGIP)
+   - API para registrar clientes
+   - API para listar bancos
+   - API para decodificar QR
+   - API para consultar saldo
+   - API para crear cotización (Quote)
+   - API para confirmar cotización (Order)
+8. WEBHOOKS
+   - Estructura y validación
+   - Seguridad en Webhook (Firma HMAC-SHA256)
+
+================================================================================
+1. GLOSARIO
+================================================================================
+* Connect Timeout: En una conexión socket o http cliente-servidor es el máximo tiempo a esperar para establecer la conexión, posterior a este tiempo el cliente ya no intenta realizar la conexión. Al dar este error, la orden no se envió, por lo que no es necesario verificar procesamiento en el servidor.
+* Read Timeout: El tiempo máximo que espera el cliente la respuesta del servidor una vez establecida la conexión. Si ocurre, es posible que el servidor SÍ haya procesado la solicitud, por lo que se recomienda realizar una verificación manual o por API.
+* TLS: Protocolo Transport Layer Security (versión actualizada y segura de SSL). Soportado en versiones 1.2 y 1.3.
+* Cipher-suite: Conjunto de algoritmos de cifrado para asegurar la red.
+* HMAC: Hash-based Message Authentication Code. Mecanismo de autenticación que usa una función hash junto a una clave secreta.
+* SHA-256: Algoritmo hash de longitud fija que funciona como huella digital de un texto.
+* API KEY: Token único que identifica a un sistema autorizado. Puede generarse desde la consola.
+* Consola: Aplicación web de administración (https://console.stereum.tech).
+
+================================================================================
+2. INTRODUCCIÓN & CONFIGURACIÓN INICIAL
+================================================================================
+Stereum provee el servicio FX (Foreign Exchange) para la compra o venta de activos digitales interactuando directamente con el core empresarial mediante API.
+
+Creación de Cuenta:
+Debe ingresar a https://console.stereum.tech utilizando un correo corporativo y llenar los datos de la empresa.
+
+Generación de API Key:
+1. Ingrese a la consola de administración.
+2. Diríjase a la sección "API Key" y pulse "Nueva API Key".
+3. Escriba el nombre de su sistema, asigne una duración y defina permisos granulares (API Transferencias, API Transacciones, API FX, API Banks).
+4. Guarde de forma segura el Client Secret generado. Nota: Configure alarmas de renovación, pues vencida la API Key no podrá extenderse su vigencia.
+
+================================================================================
+3. INTEGRACIÓN POR API (ESPECIFICACIONES TÉCNICAS)
+================================================================================
+Control de Acceso:
+Se requiere la inyección del API Key en cada solicitud utilizando cabeceras personalizadas HTTP:
+  Header Key: x-api-key
+  Header Value: <TU_API_KEY>
+
+Manejo de Errores:
+* 401 Unauthorized: Cabecera x-api-key ausente o con formato incorrecto.
+* 403 Forbidden: API Key enviada pero inválida, revocada o sin privilegios para el recurso.
+* Cifrado estricto: Peticiones HTTP planas (sin TLS/HTTPS) serán rechazadas automáticamente.
+* Custodia: No exponga la llave en repositorios de código ni en el cliente (móvil/SPA). Consérvela como variable de entorno en su backend.
+
+URL Base de la API:
+  https://api.stereum.tech
+
+================================================================================
+4. KYC + AML (REQUISITO OBLIGATORIO)
+================================================================================
+Antes de consumir los servicios, el sistema integrador debe certificar que el usuario final superó los procesos KYC (Conocimiento del Cliente) y cruces AML (Prevención de Lavado de Activos contra listas restrictivas como OFAC, ONU, PEPs, etc.). Las evidencias deben guardarse para auditorías de Stereum.
+
+================================================================================
+5. INVENTARIO DE ENDPOINTS
+================================================================================
+
+--------------------------------------------------------------------------------
+A) API PARA VALIDAR DOCUMENTO (SEGIP)
+--------------------------------------------------------------------------------
+Valida los datos de identidad de un ciudadano boliviano con la base de datos oficial.
+Endpoint: POST /api/v1/segip/validate
+
+Request JSON:
+{
+  "givenNames": "JUAN",
+  "surname1": "PEREZ",
+  "surname2": "MEDINA",
+  "birthdate": "20/01/2001",
+  "dniType": "CI", 
+  "documentNumber": "7799357",
+  "complementNumber": null
+}
+
+Response JSON (Ejemplo Exitoso - 200 OK):
+{
+  "fields": {
+    "givenNames": "CORRECT",
+    "surname1": "CORRECT",
+    "surname2": "CORRECT",
+    "birthdate": "CORRECT",
+    "dniType": null,
+    "documentNumber": "CORRECT",
+    "complementNumber": "CORRECT"
+  },
+  "status": "VERIFIED",
+  "validationId": null
+}
+
+Response JSON (Parcialmente incorrecto - 200 OK):
+{
+  "status": "PARTIALLY_INCORRECT",
+  "fields": {
+    "givenNames": "CORRECT",
+    "surname1": "INCORRECT",
+    "surname2": "NOT_VERIFIED",
+    "documentNumber": "CORRECT",
+    "complementNumber": "CORRECT",
+    "birthdate": "INCORRECT"
+  },
+  "validationId": 146
+}
+
+* Errores comunes: 503 Service Unavailable (Servicio de SEGIP no disponible).
+
+--------------------------------------------------------------------------------
+B) API PARA REGISTRAR CLIENTES
+--------------------------------------------------------------------------------
+Registra los datos adicionales de cumplimiento regulatorio local.
+Endpoint: POST /api/v1/customers/create
+
+Códigos de Departamentos (ISO-3166-2):
+  BO_B (Beni), BO_C (Cochabamba), BO_H (Chuquisaca), BO_L (La Paz), 
+  BO_O (Oruro), BO_N (Pando), BO_P (Potosí), BO_S (Santa Cruz), BO_T (Tarija)
+
+Request JSON:
+{
+  "name": "Ricardo",
+  "lastname": "Laredo",
+  "document_type": "CI", // Opciones: CI, CE, PASSPORT
+  "document_number": "77009356",
+  "country": "BO",
+  "state_of_residence": "BO_S",
+  "economic_activity": "Desarrollo informatica",
+  "source_of_funds": "Trabajo en el extranjero",
+  "destination_of_funds": "Pago de servicios en el extranjero",
+  "income_level": "500 - 1000",
+  "doc_provider_id": "SEIP-003",
+  "idempotency_key": "CLI-001"
+}
+
+Response JSON (201 Created):
+{
+  "id": "4a475121-b7e1-49e2-8f7b-789f5adadd04",
+  "name": "Ricardo",
+  "lastname": "Laredo",
+  "country": "BO",
+  "document_type": "CI",
+  "document_number": "77009357",
+  "state_of_residence": "BO_S",
+  "source_of_funds": "Trabajo en el extranjero",
+  "destination_of_funds": "Pago de servicios en el extranjero",
+  "contracted_services": "QR",
+  "income_level": "500 - 1000"
+}
+
+* Response 400 Bad Request: {"message": "Ya existe el cliente"}
+
+--------------------------------------------------------------------------------
+C) API PARA LISTAR BANCOS
+--------------------------------------------------------------------------------
+Obtiene los bancos nacionales habilitados para liquidaciones en Bolivia.
+Endpoint: GET /api/v1/banks?country=BO
+
+Response JSON (200 OK):
+[
+  {
+    "type": "BANECO",
+    "code": "1016",
+    "description": "BANCO ECONOMICO S.A.",
+    "icon": "https://console.stereum.tech/image/1016.png"
+  },
+  {
+    "type": "BCP",
+    "code": "1005",
+    "description": "BANCO DE CREDITO DE BOLIVIA S

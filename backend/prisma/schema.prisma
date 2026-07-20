@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Trade {
+  id            Int       @id @default(autoincrement())
+  tradeId       Int?      @unique
+  userWallet    String
+  lpAddress     String
+  amountUSDT    Float
+  amountBOB     Float
+  rate          Float
+  lpSpread      Int       @default(50)
+  platformFee   Int       @default(50)
+  userOpId      String    @unique
+  status        String    @default("pending")
+  txHash        String?
+  releaseTxHash String?
+  qrData        String?
+  qrCodeBase64  String?
+  quoteId       String?   @unique
+  rateAtQuote   Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  lockedAt      DateTime?
+  releasedAt    DateTime?
+  expiredAt     DateTime?
+
+  @@index([status])
+  @@index([userWallet])
+  @@index([lpAddress])
+  @@index([userOpId])
+  @@index([quoteId])
+}
+
+model LP {
+  id            String    @id @default(cuid())
+  wallet        String    @unique
+  dailyLimit    Float?
+  totalDeposited Float   @default(0)
+  totalLocked   Float     @default(0)
+  totalReleased Float     @default(0)
+  totalExpired  Float     @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([wallet])
+}
+
+model RateSnapshot {
+  id            String    @id @default(cuid())
+  source        String
+  rate          Float
+  currency      String    @default("BOB")
+  asset         String    @default("USDT")
+  timestamp     DateTime  @default(now())
+
+  @@index([source, timestamp])
+}
+
+model WebhookLog {
+  id            String    @id @default(cuid())
+  source        String
+  payload       String
+  signature     String?
+  processed     Boolean   @default(false)
+  tradeId       Int?
+  error         String?
+  createdAt     DateTime  @default(now())
+
+  @@index([processed])
+  @@index([tradeId])
+}
+
+model Customer {
+  id                String    @id @default(cuid())
+  wallet            String    @unique
+  stereumCustomerId String?   @unique
+  name              String
+  lastname          String
+  documentType      String    @default("CI")
+  documentNumber    String
+  complementNumber  String?
+  country           String    @default("BO")
+  stateOfResidence  String
+  economicActivity  String?
+  sourceOfFunds     String?
+  destinationOfFunds String?
+  incomeLevel       String?
+  kycStatus         String    @default("pending") // pending, verified, rejected
+  kycValidatedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([documentNumber])
+  @@index([wallet])
+}

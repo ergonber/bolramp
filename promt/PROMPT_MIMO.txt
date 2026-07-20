@@ -1,0 +1,140 @@
+# PROMPT — Onramp Automático No-Custodial BOB → USDT/USDC
+
+## Proyecto
+Construir el primer onramp automático no-custodial de Bolivianos (BOB) a USDT/USDC en Bolivia. Usuario con wallet EVM escanea QR, paga BOB desde su banca móvil, recibe USDT en <60s. Nosotros nunca custodiamos fondos. Pricing basado en tasa P2P real del mercado boliviano + small spread.
+
+## Stack Tecnológico
+- Smart Contract: Solidity 0.8.x, OpenZeppelin, Hardhat (Polygon)
+- Backend: Node.js + TypeScript + Express
+- Frontend: Next.js + React + Tailwind + RainbowKit + wagmi
+- DB: PostgreSQL + Redis
+- Pago QR: OpenBCB API (BCB directo)
+- Pricing: API Binance P2P (USDT/BOB)
+- Infra: Railway / DigitalOcean
+
+## Seguridad (CRÍTICO — manejamos dinero real)
+- OpenZeppelin ReentrancyGuard en todos los contratos
+- Per-trade allocation (nunca pool compartido)
+- Time-lock 24h para retiros LP
+- EIP-712 para firmas del backend (sin private key en contrato)
+- Multifirma 2-of-3 para montos > umbral
+- Pausable (emergency stop)
+- Límite diario configurable
+- Auditoría externa antes de mainnet
+
+## Flujo Onramp
+1. Usuario conecta wallet (MetaMask/Rabby) en frontend
+2. Ingresa monto en USDT que quiere comprar
+3. Backend calcula tasa: P2P_rate + 0.5% LP spread + 0.5% platform fee
+4. Backend genera QR via OpenBCB API (monto en BOB)
+5. Usuario escanea QR y paga desde su app bancaria
+6. OpenBCB notifica vía webhook al backend
+7. Backend firma mensaje EIP-712 y envía tx al contrato
+8. Smart Contract libera USDT del escrow al usuario
+9. LP recibe BOB en su cuenta bancaria
+10. LP recompra USDT en P2P para reponer escrow
+
+## IMPLEMENTACIÓN — FASE 1: SMART CONTRACT (EscrowMaster)
+
+### Requisitos del Contrato
+
+**EscrowMaster.sol — Polygon**
+
+```solidity
+Roles:
+  LP_ADMIN: deposita USDT, recibe BOB, retira con time-lock
+  OPERATOR: backend que firma liberaciones vía EIP-712
+  ARBITER: resuelve disputas (multifirma 2-of-3)
+
+Trade:
+  struct Trade {
+    address user;
+    address lp;
+    uint256 amountUSDT;
+    uint256 amountBOB;
+    uint256 rateP2P;
+    uint256 lpSpread;
+    uint256 platformFee;
+    uint256 createdAt;
+    TradeStatus status; // PENDING → LOCKED → RELEASED / EXPIRED
+    bytes32 userOpId; // idempotencia
+  }
+```
+
+**Funciones principales:**
+- `depositUSDT(uint256 amount)` — LP deposita USDT al contrato
+- `lockTrade(TradeParams)` — OPERATOR bloquea USDT cuando el QR se genera
+- `release(bytes memory signature)` — OPERATOR firma EIP-712, libera USDT al user, fee al treasury
+- `expireTrade(uint256 tradeId)` — si el pago no llega en X minutos
+- `withdrawLP(uint256 amount)` — LP retira, respeta time-lock 24h
+- `pause()` / `unpause()` — emergency stop
+- `setDailyLimit(uint256)` — límite diario por LP
+
+**Seguridad:**
+- ReentrancyGuard en release(), expireTrade()
+- Per-trade allocation: USDT se bloquea por trade, nunca se mezcla
+- EIP-712: backend firma con private key aislada, contrato verifica
+- Time-lock: LP no puede retirar capital no asignado antes de 24h
+- Max fee configurable (5%)
+- Eventos: TradeLocked, TradeReleased, TradeExpired, Deposit, Withdrawal
+
+### Tests Unitarios (Hardhat)
+- Depósito LP
+- Lock + Release exitoso
+- Lock + Expire (pago no llega)
+- Reentrancy attack attempt
+- EIP-712 signature verification
+- Time-lock enforcement
+- Pause/Unpause
+- Daily limit
+- Multi-LP (dos LPs diferentes)
+
+## IMPLEMENTACIÓN — FASE 2: BACKEND (Node.js + TypeScript)
+
+### API Endpoints
+```
+POST   /api/quote              → Calcula tasa P2P + spread + fee
+POST   /api/qr                 → Genera QR vía OpenBCB
+POST   /api/webhook/openbcb    → Recibe confirmación de pago
+POST   /api/trade/release      → Firma y envía release al contrato
+GET    /api/trade/:id          → Estado del trade
+POST   /api/lp/deposit         → LP deposita USDT
+GET    /api/lp/balance         → Balance del LP
+```
+
+### Seguridad Backend
+- API Key + JWT para autenticación
+- Private key del OPERATOR en variable de entorno (nunca en código)
+- Rate limiting
+- Idempotencia en webhooks (evitar doble release)
+- Logs estructurados (Sentry)
+- HTTPS obligatorio
+
+## IMPLEMENTACIÓN — FASE 3: FRONTEND (Next.js)
+
+### Páginas
+- `/comprar` — Conectar wallet, ingresar monto, ver QR, esperar confirmación
+- `/dashboard` — Historial de trades
+- `/lp` — Dashboard del LP: balance, depósitos, trades activos, retiros
+
+### Seguridad Frontend
+- rainbowKit para conexión wallet segura
+- Validación de todos los inputs client-side y server-side
+- No hardcodear private keys
+- Verificación de chain ID (Polygon mainnet vs testnet)
+
+## PRÓXIMOS PASOS DESPUÉS DE FASE 1-3
+- Fase 4: Integración OpenBCB real (test credentials)
+- Fase 5: QA + auditoría de seguridad
+- Fase 6: Deploy Polygon testnet → mainnet
+- Post-MVP: Manteca API para offramp
+
+## PREGUNTA INICIAL PARA MIMO
+Quiero empezar con la Fase 1: Smart Contract EscrowMaster en Solidity con Hardhat. Dame el código completo incluyendo:
+1. EscrowMaster.sol
+2. Tests unitarios en Hardhat
+3. Script de deploy
+4. Configuración de red Polygon testnet (Amoy)
+5. Archivo .env.example con las variables necesarias
+
+TODO con altos estándares de seguridad (OpenZeppelin, ReentrancyGuard, EIP-712, Pausable). El contrato debe ser audit-ready.
