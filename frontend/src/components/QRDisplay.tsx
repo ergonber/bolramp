@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { simulatePayment } from "@/lib/api";
 
 interface QRDisplayProps {
   qrImage?: string;
@@ -8,10 +9,13 @@ interface QRDisplayProps {
   bankName?: string;
   accountName?: string;
   accountNumber?: string;
+  instructions?: string;
   timeLeft: number;
   status: string;
   tradeId?: number | null;
+  dbTradeId?: number | null;
   txHash?: string | null;
+  onPaymentSimulated?: () => void;
 }
 
 export function QRDisplay({
@@ -20,12 +24,17 @@ export function QRDisplay({
   bankName,
   accountName,
   accountNumber,
+  instructions,
   timeLeft,
   status,
   tradeId,
+  dbTradeId,
   txHash,
+  orderId,
+  onPaymentSimulated,
 }: QRDisplayProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const totalSeconds = 300;
@@ -83,6 +92,19 @@ export function QRDisplay({
   return (
     <div className="flex flex-col items-center gap-5 animate-fadeIn">
       {/* QR Code + Timer */}
+      {!qrImage && status === "pending" && (
+        <div className="w-full glass-card rounded-2xl p-6 text-center animate-fadeIn">
+          <div className="w-16 h-16 bg-blue-500/10 border border-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-white mb-2">Orden Confirmada</h3>
+          <p className="text-sm text-slate-400">
+            {instructions || "Esperando confirmacion de pago via Stereum Pay"}
+          </p>
+        </div>
+      )}
       {qrImage && (
         <div className="relative">
           <div className="bg-white rounded-2xl p-4 shadow-2xl shadow-black/30">
@@ -230,6 +252,32 @@ export function QRDisplay({
                 Verificacion automatica via Stereum Pay
               </p>
             </div>
+
+            <button
+              onClick={async () => {
+                if (!dbTradeId) return;
+                setSimulating(true);
+                try {
+                  await simulatePayment(dbTradeId);
+                  onPaymentSimulated?.();
+                } catch (err) {
+                  console.error("Failed to simulate:", err);
+                } finally {
+                  setSimulating(false);
+                }
+              }}
+              disabled={simulating}
+              className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm font-semibold hover:bg-emerald-500/20 transition-all duration-200 disabled:opacity-50"
+            >
+              {simulating ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                  Simulando pago...
+                </span>
+              ) : (
+                "Simular Pago Recibido (Test)"
+              )}
+            </button>
           </div>
         )}
 

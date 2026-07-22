@@ -10,7 +10,7 @@ interface ApiResponse<T> {
 export interface Quote {
   quoteId: string;
   amountBOB: number;
-  amountUSDT: number;
+  amountUSDC: number;
   rate: number;
   serviceFee: number;
   feeCurrency: string;
@@ -148,6 +148,19 @@ export async function getTradeHistory(
   );
   if (!result.success || !result.data) {
     throw new Error(result.error || "Failed to get trade history");
+  }
+  return result.data;
+}
+
+export async function simulatePayment(
+  tradeId: number,
+): Promise<{ tradeId: number; status: string; releaseTxHash: string | null }> {
+  const result = await fetchApi<{ tradeId: number; status: string; releaseTxHash: string | null }>(
+    `/api/trade/${tradeId}/simulate-payment`,
+    { method: "POST" },
+  );
+  if (!result.success || !result.data) {
+    throw new Error(result.error || "Failed to simulate payment");
   }
   return result.data;
 }

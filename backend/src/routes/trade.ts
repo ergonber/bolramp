@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { EscrowService } from "../services/escrow.js";
+import { SignerService } from "../services/signer.js";
 import { PrismaClient } from "@prisma/client";
 import { AppError } from "../middleware/errorHandler.js";
 import pino from "pino";
@@ -113,6 +114,77 @@ router.get("/:id", async (req: Request, res: Response) => {
     logger.error({ error, tradeId: id }, "Failed to fetch trade");
     throw new AppError("Failed to fetch trade", 500);
   }
+});
+
+// ==================== SIMULATE PAYMENT (TEST ONLY) ====================
+
+router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
+  const parsed = tradeIdSchema.safeParse(req.params);
+
+  if (!parsed.success) {
+    throw new AppError("Invalid trade ID", 400);
+  }
+
+  const { id } = parsed.data;
+
+  const trade = await prisma.trade.findFirst({
+    where: { id },
+  });
+
+  if (!trade) {
+    throw new AppError("Trade not found", 404);
+  }
+
+  if (trade.status === "released") {
+    res.json({ success: true, message: "Trade already released", timestamp: new Date().toISOString() });
+    return;
+  }
+
+  // Simulate webhook: Stereum confirms BOB payment received
+  let releaseTxHash: string | null = null;
+
+  if (trade.tradeId && trade.tradeId > 0) {
+    try {
+      const escrow = new EscrowService();
+      const signer = new SignerService();
+      const onChainTrade = await escrow.getTrade(trade.tradeId);
+
+      if (onChainTrade.status === 1) {
+        const signature = await signer.signRelease(
+          trade.tradeId,
+          onChainTrade.user,
+          onChainTrade.amountUSDT,
+          onChainTrade.userOpId,
+        );
+        const releaseTx = await escrow.release(trade.tradeId, signature);
+        releaseTxHash = releaseTx.hash;
+      }
+    } catch (err) {
+      logger.warn({ tradeId: trade.tradeId, error: err }, "On-chain release skipped (mock mode)");
+    }
+  }
+
+  await prisma.trade.update({
+    where: { id },
+    data: {
+      status: "released",
+      releaseTxHash,
+      releasedAt: new Date(),
+    },
+  });
+
+  logger.info({ tradeId: trade.tradeId, orderId: trade.userOpId }, "Payment simulated — trade released");
+
+  res.json({
+    success: true,
+    data: {
+      tradeId: trade.tradeId,
+      status: "released",
+      releaseTxHash,
+    },
+    message: "Pago simulado exitosamente. USDT liberado.",
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export default router;

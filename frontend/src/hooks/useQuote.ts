@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { getQuote, type Quote } from "@/lib/api";
 
-export function useQuote(amount: number | null) {
-  const { address } = useAccount();
+export function useQuote(amount: number | null, walletOverride?: string) {
+  const { address: wagmiAddress } = useAccount();
+  const address = walletOverride || wagmiAddress;
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

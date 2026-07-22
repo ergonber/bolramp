@@ -1,5 +1,6 @@
 import { getEnv } from "../config/env.js";
 import pino from "pino";
+import crypto from "crypto";
 
 const logger = pino({ name: "stereum" });
 
@@ -161,7 +162,6 @@ export class StereumService {
   // ==================== WEBHOOK VALIDATION ====================
 
   validateWebhookSignature(payload: string, signature: string, timestamp: string): boolean {
-    const crypto = require("crypto");
     const expectedSignature = crypto
       .createHmac("sha256", this.apiKey)
       .update(`${timestamp}.${payload}`)

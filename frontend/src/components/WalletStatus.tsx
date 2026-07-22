@@ -1,9 +1,19 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useAccount, useBalance, useChainId } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 
 export function WalletStatus() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return <ConnectButton />;
+
+  return <WalletStatusInner />;
+}
+
+function WalletStatusInner() {
   const { address, isConnected } = useAccount();
   const { data: polBalance } = useBalance({ address });
   const chainId = useChainId();

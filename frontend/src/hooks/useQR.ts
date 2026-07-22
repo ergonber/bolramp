@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getTrade, type TradeStatus } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -9,6 +9,7 @@ interface QRData {
   orderId?: string;
   transactionId?: string;
   tradeId?: number | null;
+  dbTradeId?: number | null;
   qrBase64?: string;
   amountBOB?: string;
   amountUSDT?: string;
@@ -61,6 +62,28 @@ export function useQR() {
       setLoading(false);
     }
   };
+
+  // Refresh trade status after simulation (works for mock trades with negative tradeId)
+  const refreshTrade = useCallback(async () => {
+    if (!qrData?.tradeId) return;
+
+    try {
+      const status = await getTrade(qrData.tradeId);
+      setTrade(status);
+    } catch {
+      // Mock trades may not exist on-chain, set released directly
+      setTrade({
+        tradeId: qrData.tradeId!,
+        status: "released",
+        userWallet: "",
+        lpAddress: "stereum",
+        amountUSDT: parseFloat(qrData.amountUSDT || "0"),
+        amountBOB: parseFloat(qrData.amountBOB || "0"),
+        rate: 0,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }, [qrData]);
 
   // Timer countdown
   useEffect(() => {
@@ -133,6 +156,7 @@ export function useQR() {
     timeLeft,
     generate,
     reset,
+    refreshTrade,
     status: qrData?.status === "PENDIENTE" ? "pending" : trade?.status || "pending",
   };
 }
