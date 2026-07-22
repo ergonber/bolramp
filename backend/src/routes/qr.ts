@@ -44,7 +44,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
       let amountUSDT = 8.55;
 
       if (quoteRes?.ok) {
-        const q = await quoteRes.json();
+        const q: any = await quoteRes.json();
         amountBOB = q.inputAmount || q.amount || 100;
         amountUSDT = q.outputAmount || 8.55;
       }
