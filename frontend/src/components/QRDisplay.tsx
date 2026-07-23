@@ -30,7 +30,6 @@ export function QRDisplay({
   tradeId,
   dbTradeId,
   txHash,
-  orderId,
   onPaymentSimulated,
 }: QRDisplayProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
