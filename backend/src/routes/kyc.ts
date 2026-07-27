@@ -156,6 +156,7 @@ const customerSchema = z.object({
   sourceOfFunds: z.string().min(1).max(60),
   destinationOfFunds: z.string().min(1).max(60),
   incomeLevel: z.string().min(1).max(15),
+  stereumCustomerId: z.string().optional(),
 });
 
 router.post("/register", apiLimiter, async (req: Request, res: Response) => {
@@ -186,6 +187,21 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
           customerId: existing.stereumCustomerId,
           status: "already_registered",
         },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // If client provides an existing Stereum customer ID, just save it
+    if (data.stereumCustomerId) {
+      await prisma.customer.update({
+        where: { wallet: data.wallet },
+        data: { stereumCustomerId: data.stereumCustomerId },
+      });
+      logger.info({ wallet: data.wallet, customerId: data.stereumCustomerId }, "Existing Stereum customer linked");
+      res.json({
+        success: true,
+        data: { customerId: data.stereumCustomerId, status: "linked" },
         timestamp: new Date().toISOString(),
       });
       return;
