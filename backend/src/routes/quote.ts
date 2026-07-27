@@ -56,7 +56,7 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
       side: "BUY",
       inputAmount: amount,
       inputCurrency: "BOB",
-      outputCurrency: "USDT",
+      outputCurrency: "USDC",
     });
 
     // Onramp fee: reduce the user's output by ONRAMP_FEE_BPS
@@ -74,7 +74,7 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
       data: {
         quoteId: quote.id,
         amountBOB: quote.inputAmount,
-        amountUSDT: userReceives,
+        amountUSDC: userReceives,
         stereumOutput: quote.outputAmount,
         rate: quote.exchangeRate,
         serviceFee: quote.serviceFee,

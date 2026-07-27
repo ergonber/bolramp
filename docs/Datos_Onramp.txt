@@ -1,0 +1,8 @@
+Listo. main ahora tiene la versión v2 (Onramp como bridge).
+Para revertir en el futuro:
+git revert 7c27976   # el commit del merge
+git push origin main
+Esto deshace solo los cambios de v2 y vuelve al estado funcional anterior. Render redesplegará automáticamente.
+¿Necesitas actualizar algo más en Render?
+
+

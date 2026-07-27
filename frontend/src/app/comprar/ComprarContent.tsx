@@ -66,10 +66,10 @@ export default function ComprarContent() {
 
       <div className="text-center mb-8 animate-slideUp">
         <h1 className="text-4xl sm:text-5xl font-bold mb-3">
-          <span className="text-gradient">Comprar USDT</span>
+          <span className="text-gradient">Comprar USDC</span>
         </h1>
         <p className="text-slate-400 text-base sm:text-lg">
-          Convierte tus Bolivianos a USDT en menos de 60 segundos
+          Convierte tus Bolivianos a USDC en menos de 60 segundos
         </p>
       </div>
 
@@ -152,7 +152,7 @@ export default function ComprarContent() {
                 Generando QR de pago...
               </span>
             ) : (
-              "Comprar USDT"
+              "Comprar USDC"
             )}
           </button>
 
