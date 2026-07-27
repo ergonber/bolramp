@@ -143,7 +143,9 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
       where: { wallet: data.wallet },
     });
 
-    if (existing?.kycStatus === "verified" && existing.stereumCustomerId) {
+    const hasRealCustomerId = existing?.stereumCustomerId && !existing.stereumCustomerId.startsWith("MOCK-");
+
+    if (existing?.kycStatus === "verified" && hasRealCustomerId) {
       res.json({
         success: true,
         data: {
@@ -230,6 +232,28 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   }
+});
+
+// ==================== RESET KYC (for re-registration) ====================
+
+router.post("/reset", async (req: Request, res: Response) => {
+  const { wallet } = req.body;
+
+  if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+    res.status(400).json({ success: false, error: "Invalid wallet address" });
+    return;
+  }
+
+  await prisma.customer.update({
+    where: { wallet },
+    data: {
+      kycStatus: "pending",
+      stereumCustomerId: null,
+      kycValidatedAt: null,
+    },
+  });
+
+  res.json({ success: true, message: "KYC reset. Please re-validate." });
 });
 
 // ==================== CHECK KYC STATUS ====================
