@@ -62,21 +62,25 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         customerId = existing.stereumCustomerId;
         logger.info({ wallet: data.wallet, customerId }, "Customer already registered in Stereum");
       } else {
-        const customerResult = await kycService.createCustomer({
-          name: data.name,
-          lastname: data.lastname,
-          document_type: data.documentType,
-          document_number: data.documentNumber,
-          country: "BO",
-          state_of_residence: "BO_S",
-          economic_activity: "Otros",
-          source_of_funds: "Ahorro personal",
-          destination_of_funds: "Inversion",
-          income_level: "$1,000 - $2,000",
-          idempotency_key: data.wallet,
-        });
-        customerId = customerResult.id;
-        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
+        try {
+          const customerResult = await kycService.createCustomer({
+            name: data.name,
+            lastname: data.lastname,
+            document_type: data.documentType,
+            document_number: data.documentNumber,
+            country: "BO",
+            state_of_residence: "BO_S",
+            economic_activity: "Otros",
+            source_of_funds: "Ahorro personal",
+            destination_of_funds: "Inversion",
+            income_level: "$1,000 - $2,000",
+            idempotency_key: data.wallet,
+          });
+          customerId = customerResult.id;
+          logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
+        } catch (createErr) {
+          logger.warn({ error: createErr }, "Customer creation failed, proceeding with SEGIP only");
+        }
       }
 
       // Step 2: Validate SEGIP (now that customer has an active account)
