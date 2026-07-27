@@ -39,8 +39,8 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
     const kycService = new StereumKycService();
 
     let result;
+    let customerId: string | null = null;
 
-    // Mock mode for testing without active Stereum account
     if (process.env.STEREUM_MOCK_KYC === "true") {
       logger.info({ wallet: data.wallet }, "SEGIP validation using MOCK mode");
       result = {
@@ -53,7 +53,33 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         },
         validationId: 9999,
       };
+      customerId = `MOCK-${Date.now()}`;
     } else {
+      // Step 1: Register customer first (Stereum requires active USDT account before SEGIP)
+      const existing = await prisma.customer.findUnique({ where: { wallet: data.wallet } });
+
+      if (existing?.stereumCustomerId && !existing.stereumCustomerId.startsWith("MOCK-")) {
+        customerId = existing.stereumCustomerId;
+        logger.info({ wallet: data.wallet, customerId }, "Customer already registered in Stereum");
+      } else {
+        const customerResult = await kycService.createCustomer({
+          name: data.name,
+          lastname: data.lastname,
+          document_type: data.documentType,
+          document_number: data.documentNumber,
+          country: "BO",
+          state_of_residence: "BO_S",
+          economic_activity: "Otros",
+          source_of_funds: "Ahorro personal",
+          destination_of_funds: "Inversion",
+          income_level: "$1,000 - $2,000",
+          idempotency_key: data.wallet,
+        });
+        customerId = customerResult.id;
+        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
+      }
+
+      // Step 2: Validate SEGIP (now that customer has an active account)
       result = await kycService.validateSegip({
         givenNames: data.name.toUpperCase(),
         surname1: data.lastname.toUpperCase(),
@@ -64,6 +90,8 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
       });
     }
 
+    const isVerified = result.status === "VERIFIED";
+
     await prisma.customer.upsert({
       where: { wallet: data.wallet },
       update: {
@@ -72,8 +100,9 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         documentType: data.documentType,
         documentNumber: data.documentNumber,
         complementNumber: data.complementNumber || null,
-        kycStatus: result.status === "VERIFIED" ? "verified" : "rejected",
-        kycValidatedAt: result.status === "VERIFIED" ? new Date() : null,
+        kycStatus: isVerified ? "verified" : "rejected",
+        kycValidatedAt: isVerified ? new Date() : null,
+        ...(customerId ? { stereumCustomerId: customerId } : {}),
       },
       create: {
         wallet: data.wallet,
@@ -83,8 +112,9 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         documentNumber: data.documentNumber,
         complementNumber: data.complementNumber || null,
         stateOfResidence: "BO_S",
-        kycStatus: result.status === "VERIFIED" ? "verified" : "rejected",
-        kycValidatedAt: result.status === "VERIFIED" ? new Date() : null,
+        kycStatus: isVerified ? "verified" : "rejected",
+        kycValidatedAt: isVerified ? new Date() : null,
+        ...(customerId ? { stereumCustomerId: customerId } : {}),
       },
     });
 
