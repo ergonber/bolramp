@@ -11,6 +11,15 @@ const ONRAMP_FEE_BPS = 50; // Must match quote.ts
 
 router.post("/", async (req: Request, res: Response) => {
   try {
+    const payload = req.body;
+
+    // Handle test notification (Stereum validates webhook URL) — accept without any auth
+    if (payload.notification_type === "test") {
+      logger.info("Test notification accepted (URL validation)");
+      res.json({ success: true, message: "Test notification received" });
+      return;
+    }
+
     const xSignature = req.headers["x-signature"] as string | undefined;
     const xTimestamp = req.headers["x-timestamp"] as string | undefined;
 
@@ -27,18 +36,7 @@ router.post("/", async (req: Request, res: Response) => {
     const isValidSignature = stereum.validateWebhookSignature(body, xSignature, xTimestamp);
 
     if (!isValidSignature) {
-      logger.warn("Invalid webhook signature — checking if test notification");
-
-      // For test notifications (URL validation), accept even with invalid signature
-      // Stereum sends { notification_type: "test" } when validating the webhook URL
-      const payload = req.body;
-      if (payload.notification_type === "test") {
-        logger.info("Test notification accepted (URL validation)");
-        res.json({ success: true, message: "Test notification received" });
-        return;
-      }
-
-      // For real order notifications, reject invalid signatures
+      logger.warn("Invalid webhook signature");
       res.status(401).json({ success: false, error: "Invalid signature" });
       return;
     }
@@ -47,16 +45,6 @@ router.post("/", async (req: Request, res: Response) => {
     if (!stereum.isWebhookTimestampValid(xTimestamp, 120)) {
       logger.warn("Webhook timestamp expired");
       res.status(401).json({ success: false, error: "Timestamp expired" });
-      return;
-    }
-
-    const payload: StereumWebhookPayload = req.body;
-
-    logger.info({ notificationType: payload.notification_type, orderId: payload.order?.id }, "Webhook received");
-
-    // Handle test notification (Stereum validates webhook URL)
-    if (payload.notification_type === "test") {
-      res.json({ success: true, message: "Test notification received" });
       return;
     }
 
