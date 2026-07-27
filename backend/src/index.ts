@@ -8,7 +8,6 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { authMiddleware } from "./middleware/auth.js";
 import quoteRouter from "./routes/quote.js";
 import qrRouter from "./routes/qr.js";
-import confirmRouter from "./routes/confirm.js";
 import tradeRouter from "./routes/trade.js";
 import lpRouter from "./routes/lp.js";
 import offrampRouter from "./routes/offramp.js";
@@ -39,7 +38,6 @@ async function main() {
   app.use("/api/quote", quoteRouter);
   app.use("/api/qr", qrRouter);
   app.use("/api/trade", tradeRouter);
-  app.use("/api/trade", confirmRouter);
   app.use("/api/lp", authMiddleware, lpRouter);
   app.use("/api/offramp", offrampRouter);
   app.use("/api/kyc", kycRouter);

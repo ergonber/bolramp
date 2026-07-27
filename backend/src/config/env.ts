@@ -16,6 +16,7 @@ const envSchema = z.object({
   CHAIN_ID: z.coerce.number().default(80002),
 
   STEREUM_API_KEY: z.string().min(1),
+  STEREUM_MOCK_KYC: z.enum(["true", "false"]).default("true"),
 
   LP_SPREAD_BPS: z.coerce.number().default(50),
   PLATFORM_FEE_BPS: z.coerce.number().default(50),

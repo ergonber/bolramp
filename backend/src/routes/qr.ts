@@ -2,14 +2,12 @@ import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { StereumService } from "../services/stereum.js";
 import { qrLimiter } from "../middleware/rateLimit.js";
-import { AppError } from "../middleware/errorHandler.js";
 import { PrismaClient } from "@prisma/client";
 import pino from "pino";
 
 const logger = pino({ name: "qr-route" });
 const router = Router();
 const prisma = new PrismaClient();
-const BASE_URL = "https://api.stereum.tech";
 
 const qrSchema = z.object({
   userWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -31,103 +29,36 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
   const { userWallet, quoteId } = parsed.data;
 
   try {
-    let order: any;
+    const stereum = new StereumService();
 
-    if (process.env.STEREUM_MOCK_KYC === "true") {
-      // Fetch the original quote to get correct amounts
-      const quoteRes = await fetch(
-        `${BASE_URL}/v1/otc/quotes/${quoteId}`,
-        { headers: { "x-api-key": process.env.STEREUM_API_KEY || "" } }
-      ).catch(() => null);
+    // Confirm order with Stereum — they generate the QR and handle the payment
+    const order = await stereum.confirmOrder({
+      quoteId,
+      walletAddress: userWallet,
+      network: "POLYGON",
+    });
 
-      let amountBOB = 100;
-      let amountUSDT = 8.55;
-
-      if (quoteRes?.ok) {
-        const q: any = await quoteRes.json();
-        amountBOB = q.inputAmount || q.amount || 100;
-        amountUSDT = q.outputAmount || 8.55;
-      }
-
-      logger.info({ userWallet, quoteId, amountBOB, amountUSDT }, "QR generation using MOCK mode");
-      order = {
-        id: `MOCK-ORDER-${Date.now()}`,
+    // Store minimal trade record for tracking (Stereum is the LP, not us)
+    const trade = await prisma.trade.create({
+      data: {
+        tradeId: 0, // No on-chain trade — Stereum handles liquidity
+        userWallet,
+        lpAddress: "stereum", // Stereum is the LP
+        amountUSDT: order.outputAmount,
+        amountBOB: order.paymentInstructions.amount,
+        rate: order.paymentInstructions.amount / order.outputAmount,
+        lpSpread: 0,
+        platformFee: 0,
+        userOpId: order.id, // Stereum's order ID for webhook matching
+        status: "pending",
         quoteId,
-        side: "BUY",
-        status: "PENDING",
-        outputAmount: amountUSDT,
-        outputCurrency: "USDT",
-        outputNetwork: "POLYGON",
-        paymentInstructions: {
-          amount: amountBOB,
-          currency: "BOB",
-          network: "POLYGON",
-          qrBase64: "",
-          expiresAt: Date.now() + 300000,
-          expiresInSeconds: 300,
-        },
-        createdAt: Date.now(),
-        transactionId: `MOCK-TX-${Date.now()}`,
-        manual: false,
-      };
-    } else {
-      const stereum = new StereumService();
-      order = await stereum.confirmOrder({
-        quoteId,
-        walletAddress: userWallet,
-        network: "POLYGON",
-      });
-    }
-
-    // Create trade in DB
-    let tradeId: number | null = null;
-    let dbTradeId: number | null = null;
-
-    if (process.env.STEREUM_MOCK_KYC === "true") {
-      // Mock mode: create trade with negative tradeId to avoid conflicts
-      const mockTradeId = -Math.floor(Date.now() / 1000);
-      const trade = await prisma.trade.create({
-        data: {
-          tradeId: mockTradeId,
-          userWallet,
-          lpAddress: "stereum",
-          amountUSDT: order.outputAmount,
-          amountBOB: order.paymentInstructions.amount,
-          rate: order.paymentInstructions.amount / order.outputAmount,
-          lpSpread: 0,
-          platformFee: 0,
-          userOpId: order.id,
-          status: "pending",
-          quoteId,
-          qrData: "",
-        },
-      });
-      tradeId = trade.tradeId;
-      dbTradeId = trade.id;
-    } else {
-      const trade = await prisma.trade.create({
-        data: {
-          tradeId: 0,
-          userWallet,
-          lpAddress: "stereum",
-          amountUSDT: order.outputAmount,
-          amountBOB: order.paymentInstructions.amount,
-          rate: order.paymentInstructions.amount / order.outputAmount,
-          lpSpread: 0,
-          platformFee: 0,
-          userOpId: order.id,
-          status: "pending",
-          quoteId,
-          qrData: order.paymentInstructions.qrBase64,
-        },
-      });
-      tradeId = trade.tradeId;
-      dbTradeId = trade.id;
-    }
+        qrData: order.paymentInstructions.qrBase64 || "",
+      },
+    });
 
     logger.info(
-      { orderId: order.id, transactionId: order.transactionId, amountBOB: order.paymentInstructions.amount },
-      "Stereum order confirmed",
+      { orderId: order.id, transactionId: order.transactionId, amountBOB: order.paymentInstructions.amount, dbTradeId: trade.id },
+      "Stereum order confirmed — QR generated",
     );
 
     res.json({
@@ -135,8 +66,8 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
       data: {
         orderId: order.id,
         transactionId: order.transactionId,
-        tradeId,
-        dbTradeId,
+        tradeId: 0, // No on-chain trade
+        dbTradeId: trade.id,
         qrBase64: order.paymentInstructions.qrBase64 || null,
         amountBOB: order.paymentInstructions.amount.toFixed(2),
         amountUSDT: order.outputAmount.toFixed(2),
@@ -144,9 +75,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
         network: order.paymentInstructions.network,
         expiresAt: new Date(order.paymentInstructions.expiresAt).toISOString(),
         status: order.status,
-        instructions: process.env.STEREUM_MOCK_KYC === "true"
-          ? `Orden confirmada. Transfiere ${order.paymentInstructions.amount.toFixed(2)} BOB a la cuenta indicada por Stereum Pay.`
-          : "Escanea el QR con tu app bancaria y transfiere el monto exacto en BOB",
+        instructions: "Escanea el QR con tu app bancaria y transfiere el monto exacto en BOB",
       },
       timestamp: new Date().toISOString(),
     });

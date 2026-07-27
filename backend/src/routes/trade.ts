@@ -1,7 +1,5 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
-import { EscrowService } from "../services/escrow.js";
-import { SignerService } from "../services/signer.js";
 import { PrismaClient } from "@prisma/client";
 import { AppError } from "../middleware/errorHandler.js";
 import pino from "pino";
@@ -86,27 +84,28 @@ router.get("/:id", async (req: Request, res: Response) => {
   const { id } = parsed.data;
 
   try {
-    const escrow = new EscrowService();
-    const trade = await escrow.getTrade(id);
+    const trade = await prisma.trade.findFirst({
+      where: { id },
+    });
 
-    const statusMap: Record<number, string> = {
-      0: "pending",
-      1: "locked",
-      2: "released",
-      3: "expired",
-    };
+    if (!trade) {
+      throw new AppError("Trade not found", 404);
+    }
 
     res.json({
       success: true,
       data: {
-        tradeId: id,
-        status: statusMap[trade.status] || "unknown",
-        userWallet: trade.user,
-        lpAddress: trade.lp,
+        dbTradeId: trade.id,
+        tradeId: trade.tradeId,
+        status: trade.status,
+        userWallet: trade.userWallet,
+        lpAddress: trade.lpAddress,
         amountUSDT: trade.amountUSDT,
         amountBOB: trade.amountBOB,
         rate: trade.rate,
-        createdAt: new Date(trade.createdAt * 1000).toISOString(),
+        releaseTxHash: trade.releaseTxHash,
+        createdAt: trade.createdAt.toISOString(),
+        releasedAt: trade.releasedAt?.toISOString() || null,
       },
       timestamp: new Date().toISOString(),
     });
@@ -140,49 +139,26 @@ router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
     return;
   }
 
-  // Simulate webhook: Stereum confirms BOB payment received
-  let releaseTxHash: string | null = null;
-
-  if (trade.tradeId && trade.tradeId > 0) {
-    try {
-      const escrow = new EscrowService();
-      const signer = new SignerService();
-      const onChainTrade = await escrow.getTrade(trade.tradeId);
-
-      if (onChainTrade.status === 1) {
-        const signature = await signer.signRelease(
-          trade.tradeId,
-          onChainTrade.user,
-          onChainTrade.amountUSDT,
-          onChainTrade.userOpId,
-        );
-        const releaseTx = await escrow.release(trade.tradeId, signature);
-        releaseTxHash = releaseTx.hash;
-      }
-    } catch (err) {
-      logger.warn({ tradeId: trade.tradeId, error: err }, "On-chain release skipped (mock mode)");
-    }
-  }
-
+  // Simulate: Stereum confirms BOB payment → USDC sent to user
   await prisma.trade.update({
     where: { id },
     data: {
       status: "released",
-      releaseTxHash,
       releasedAt: new Date(),
     },
   });
 
-  logger.info({ tradeId: trade.tradeId, orderId: trade.userOpId }, "Payment simulated — trade released");
+  logger.info({ dbTradeId: trade.id, userOpId: trade.userOpId }, "Payment simulated — trade released");
 
   res.json({
     success: true,
     data: {
-      tradeId: trade.tradeId,
+      dbTradeId: trade.id,
       status: "released",
-      releaseTxHash,
+      userWallet: trade.userWallet,
+      amountUSDT: trade.amountUSDT,
     },
-    message: "Pago simulado exitosamente. USDT liberado.",
+    message: "Pago simulado exitosamente. Stereum envia USDT al usuario.",
     timestamp: new Date().toISOString(),
   });
 });
