@@ -1,6 +1,5 @@
 import { Router, Request, Response } from "express";
 import { StereumService, type StereumWebhookPayload } from "../services/stereum.js";
-import { apiLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
 import pino from "pino";
 
@@ -10,7 +9,7 @@ const prisma = new PrismaClient();
 
 const ONRAMP_FEE_BPS = 50; // Must match quote.ts
 
-router.post("/", apiLimiter, async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response) => {
   try {
     const xSignature = req.headers["x-signature"] as string | undefined;
     const xTimestamp = req.headers["x-timestamp"] as string | undefined;
@@ -116,6 +115,10 @@ router.post("/", apiLimiter, async (req: Request, res: Response) => {
     // Always return 200 to Stereum to avoid retries on processing errors
     res.json({ success: true, message: "Webhook acknowledged" });
   }
+});
+
+router.get("/", (_req: Request, res: Response) => {
+  res.json({ success: true, message: "Stereum webhook endpoint is live" });
 });
 
 export default router;
