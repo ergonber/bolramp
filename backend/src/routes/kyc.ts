@@ -66,13 +66,20 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
       };
       customerId = `MOCK-${Date.now()}`;
     } else {
-      // Step 1: Register customer first (Stereum requires active USDT account before SEGIP)
-      const existing = await prisma.customer.findUnique({ where: { wallet: data.wallet } });
+      // Step 1: Validate SEGIP first (Stereum requires this before customer registration)
+      const segipResult = await kycService.validateSegip({
+        givenNames: data.name.toUpperCase(),
+        surname1: data.lastname.toUpperCase(),
+        birthdate: data.birthdate,
+        dniType: data.documentType,
+        documentNumber: data.documentNumber,
+        complementNumber: data.complementNumber || null,
+      });
 
-      if (existing?.stereumCustomerId && !existing.stereumCustomerId.startsWith("MOCK-")) {
-        customerId = existing.stereumCustomerId;
-        logger.info({ wallet: data.wallet, customerId }, "Customer already registered in Stereum");
-      } else {
+      result = segipResult;
+
+      // Step 2: Only register customer if SEGIP passed
+      if (segipResult.status === "VERIFIED") {
         const customerResult = await kycService.createCustomer({
           name: data.name,
           lastname: data.lastname,
@@ -84,22 +91,14 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
           source_of_funds: "Ahorro personal",
           destination_of_funds: "Inversion",
           income_level: "1000 - 2000",
-          doc_provider_id: "SEIP-000",
+          doc_provider_id: `SEIP-${segipResult.validationId || "000"}`,
           idempotency_key: data.wallet,
         });
         customerId = customerResult.id;
-        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
+        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum after SEGIP");
+      } else {
+        logger.warn({ status: segipResult.status }, "SEGIP failed, skipping customer creation");
       }
-
-      // Step 2: Validate SEGIP (now that customer has an active account)
-      result = await kycService.validateSegip({
-        givenNames: data.name.toUpperCase(),
-        surname1: data.lastname.toUpperCase(),
-        birthdate: data.birthdate,
-        dniType: data.documentType,
-        documentNumber: data.documentNumber,
-        complementNumber: data.complementNumber || null,
-      });
     }
 
     const isVerified = result.status === "VERIFIED";
