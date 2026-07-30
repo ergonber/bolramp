@@ -9,6 +9,17 @@ const logger = pino({ name: "kyc-route" });
 const router = Router();
 const prisma = new PrismaClient();
 
+function mapIncomeLevelToFrontend(level: string): string {
+  const map: Record<string, string> = {
+    "Menos de $500": "0 - 500",
+    "$500 - $1,000": "500 - 1000",
+    "$1,000 - $2,000": "1000 - 2000",
+    "$2,000 - $5,000": "2000 - 5000",
+    "Mas de $5,000": "5000+",
+  };
+  return map[level] || level;
+}
+
 // ==================== VALIDATE SEGIP ====================
 
 const segipSchema = z.object({
@@ -62,25 +73,22 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         customerId = existing.stereumCustomerId;
         logger.info({ wallet: data.wallet, customerId }, "Customer already registered in Stereum");
       } else {
-        try {
-          const customerResult = await kycService.createCustomer({
-            name: data.name,
-            lastname: data.lastname,
-            document_type: data.documentType,
-            document_number: data.documentNumber,
-            country: "BO",
-            state_of_residence: "BO_S",
-            economic_activity: "Otros",
-            source_of_funds: "Ahorro personal",
-            destination_of_funds: "Inversion",
-            income_level: "$1,000 - $2,000",
-            idempotency_key: data.wallet,
-          });
-          customerId = customerResult.id;
-          logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
-        } catch (createErr) {
-          logger.warn({ error: createErr }, "Customer creation failed, proceeding with SEGIP only");
-        }
+        const customerResult = await kycService.createCustomer({
+          name: data.name,
+          lastname: data.lastname,
+          document_type: data.documentType,
+          document_number: data.documentNumber,
+          country: "BO",
+          state_of_residence: "BO_S",
+          economic_activity: "Otros",
+          source_of_funds: "Ahorro personal",
+          destination_of_funds: "Inversion",
+          income_level: "1000 - 2000",
+          doc_provider_id: "SEIP-000",
+          idempotency_key: data.wallet,
+        });
+        customerId = customerResult.id;
+        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
       }
 
       // Step 2: Validate SEGIP (now that customer has an active account)
@@ -247,7 +255,7 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
         economic_activity: data.economicActivity,
         source_of_funds: data.sourceOfFunds,
         destination_of_funds: data.destinationOfFunds,
-        income_level: data.incomeLevel,
+        income_level: mapIncomeLevelToFrontend(data.incomeLevel),
         idempotency_key: data.wallet,
       });
     }

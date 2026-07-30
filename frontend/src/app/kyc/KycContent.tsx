@@ -17,11 +17,11 @@ const DEPARTMENTS = [
 ];
 
 const INCOME_LEVELS = [
-  "Menos de $500",
-  "$500 - $1,000",
-  "$1,000 - $2,000",
-  "$2,000 - $5,000",
-  "Mas de $5,000",
+  { value: "0 - 500", label: "Menos de $500" },
+  { value: "500 - 1000", label: "$500 - $1,000" },
+  { value: "1000 - 2000", label: "$1,000 - $2,000" },
+  { value: "2000 - 5000", label: "$2,000 - $5,000" },
+  { value: "5000+", label: "Mas de $5,000" },
 ];
 
 const ECONOMIC_ACTIVITIES = [
@@ -65,7 +65,7 @@ export default function KycContent() {
     economicActivity: "Tecnologia y software",
     sourceOfFunds: "Trabajo independiente",
     destinationOfFunds: "Ahorro e inversion",
-    incomeLevel: "$1,000 - $2,000",
+    incomeLevel: "1000 - 2000",
   });
 
   const fetchKycStatus = async () => {
@@ -339,8 +339,8 @@ export default function KycContent() {
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
               >
                 {INCOME_LEVELS.map((level) => (
-                  <option key={level} value={level}>
-                    {level}
+                  <option key={level.value} value={level.value}>
+                    {level.label}
                   </option>
                 ))}
               </select>
