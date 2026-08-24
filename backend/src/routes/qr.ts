@@ -92,7 +92,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
 
     const trade = await prisma.trade.create({
       data: {
-        tradeId: 0,
+        tradeId: null, // Null for mock/Stereum trades (no on-chain trade)
         userWallet,
         lpAddress,
         amountUSDT: order.outputAmount,
