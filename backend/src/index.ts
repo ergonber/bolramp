@@ -13,6 +13,7 @@ import lpRouter from "./routes/lp.js";
 import offrampRouter from "./routes/offramp.js";
 import stereumWebhookRouter from "./routes/stereumWebhook.js";
 import kycRouter from "./routes/kyc.js";
+import adminRouter from "./routes/admin.js";
 
 const logger = pino({ name: "onramp-backend" });
 
@@ -42,6 +43,7 @@ async function main() {
   app.use("/api/lp", authMiddleware, lpRouter);
   app.use("/api/offramp", offrampRouter);
   app.use("/api/kyc", kycRouter);
+  app.use("/api/admin", adminRouter);
 
   app.use(errorHandler);
 

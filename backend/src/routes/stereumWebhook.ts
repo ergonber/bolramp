@@ -65,7 +65,6 @@ router.post("/", async (req: Request, res: Response) => {
 
       if (order.status === "COMPLETADA" && order.side === "BUY") {
         // Payment completed — Stereum sends USDC directly to user's wallet
-        // We just track it + calculate Onramp fee earned
         const onrampFee = dbTrade.amountUSDT * (ONRAMP_FEE_BPS / 10_000);
 
         await prisma.trade.update({
@@ -85,7 +84,7 @@ router.post("/", async (req: Request, res: Response) => {
             amountUSDC: order.output_amount,
             onrampFee,
           },
-          "Payment completed — Onramp fee earned",
+          "Payment completed — Stereum sent USDC to user",
         );
       } else if (order.status === "CANCELADA") {
         await prisma.trade.update({

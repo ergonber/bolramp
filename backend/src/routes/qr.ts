@@ -38,7 +38,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
       network: "POLYGON",
     });
 
-    // Store minimal trade record for tracking (Stereum is the LP, not us)
+    // Store trade record — Stereum is the LP (handles liquidity)
     const trade = await prisma.trade.create({
       data: {
         tradeId: 0, // No on-chain trade — Stereum handles liquidity
@@ -66,7 +66,6 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
       data: {
         orderId: order.id,
         transactionId: order.transactionId,
-        tradeId: 0, // No on-chain trade
         dbTradeId: trade.id,
         qrBase64: order.paymentInstructions.qrBase64 || null,
         amountBOB: order.paymentInstructions.amount.toFixed(2),
