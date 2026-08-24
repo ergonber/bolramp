@@ -90,7 +90,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     const signer = new SignerService();
     const lpAddress = signer.getAddress();
 
-    const mockTradeId = isMock ? -(Date.now()) : null;
+    const mockTradeId = isMock ? -(Math.floor(Date.now() / 1000) % 2_000_000_000) : null;
 
     const trade = await prisma.trade.create({
       data: {
