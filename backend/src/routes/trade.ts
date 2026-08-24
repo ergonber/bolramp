@@ -135,7 +135,18 @@ router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
   }
 
   if (trade.status === "released") {
-    res.json({ success: true, message: "Trade already released", timestamp: new Date().toISOString() });
+    res.json({
+      success: true,
+      data: {
+        dbTradeId: trade.id,
+        tradeId: trade.tradeId,
+        status: trade.status,
+        userWallet: trade.userWallet,
+        amountUSDT: trade.amountUSDT,
+      },
+      message: "Trade already released",
+      timestamp: new Date().toISOString(),
+    });
     return;
   }
 

@@ -157,7 +157,7 @@ export async function simulatePayment(
 ): Promise<{ tradeId: number; status: string; releaseTxHash: string | null }> {
   const result = await fetchApi<{ tradeId: number; status: string; releaseTxHash: string | null }>(
     `/api/trade/${tradeId}/simulate-payment`,
-    { method: "POST" },
+    { method: "POST", body: JSON.stringify({}) },
   );
   if (!result.success || !result.data) {
     throw new Error(result.error || "Failed to simulate payment");
