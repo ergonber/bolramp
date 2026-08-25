@@ -254,10 +254,15 @@ export function QRDisplay({
 
             <button
               onClick={async () => {
-                if (!dbTradeId) return;
+                console.log("Simulate clicked — dbTradeId:", dbTradeId, "tradeId:", tradeId);
+                const id = dbTradeId ?? tradeId;
+                if (!id) {
+                  console.error("No trade ID available for simulation");
+                  return;
+                }
                 setSimulating(true);
                 try {
-                  await simulatePayment(dbTradeId);
+                  await simulatePayment(id);
                   onPaymentSimulated?.();
                 } catch (err) {
                   console.error("Failed to simulate:", err);
