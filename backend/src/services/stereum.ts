@@ -11,7 +11,9 @@ interface StereumQuoteRequest {
   side: "BUY" | "SELL";
   inputAmount: number;
   inputCurrency: string;
+  inputNetwork?: string;
   outputCurrency: string;
+  outputNetwork?: string;
   country?: string;
 }
 
@@ -129,7 +131,9 @@ export class StereumService {
       side: params.side,
       inputAmount: params.inputAmount,
       inputCurrency: params.inputCurrency,
+      inputNetwork: params.side === "BUY" ? "CSL" : "POLYGON",
       outputCurrency: params.outputCurrency,
+      outputNetwork: params.side === "BUY" ? "POLYGON" : "CSL",
       country: "BO",
     };
 
