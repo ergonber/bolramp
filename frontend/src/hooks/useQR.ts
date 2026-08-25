@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getTrade, type TradeStatus } from "@/lib/api";
+import { type TradeStatus } from "@/lib/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -63,17 +63,23 @@ export function useQR() {
     }
   };
 
-  // Refresh trade status after simulation (works for mock trades with negative tradeId)
+  // Refresh trade status after simulation or webhook
   const refreshTrade = useCallback(async () => {
-    if (!qrData?.tradeId) return;
+    if (!qrData?.dbTradeId) return;
 
     try {
-      const status = await getTrade(qrData.tradeId);
-      setTrade(status);
+      // Use dbTradeId to poll backend (Stereum trades have tradeId=0)
+      const response = await fetch(`${API_BASE}/api/trade/${qrData.dbTradeId}`, {
+        headers: { "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "" },
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setTrade(result.data);
+      }
     } catch {
-      // Mock trades may not exist on-chain, set released directly
+      // If poll fails, mark as released directly (webhook already confirmed)
       setTrade({
-        tradeId: qrData.tradeId!,
+        tradeId: qrData.tradeId || 0,
         status: "released",
         userWallet: "",
         lpAddress: "stereum",
@@ -106,18 +112,23 @@ export function useQR() {
     };
   }, [qrData]);
 
-  // Poll trade status (for on-chain release after webhook)
+  // Poll trade status (for webhook-based release — Stereum handles LP)
   useEffect(() => {
-    if (!qrData?.tradeId || qrData.tradeId <= 0) return;
+    if (!qrData?.dbTradeId) return;
 
     const pollTradeStatus = async () => {
       try {
-        const status = await getTrade(qrData.tradeId!);
-        setTrade(status);
+        const response = await fetch(`${API_BASE}/api/trade/${qrData.dbTradeId}`, {
+          headers: { "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "" },
+        });
+        const result = await response.json();
+        if (result.success && result.data) {
+          setTrade(result.data);
 
-        if (status.status === "released" || status.status === "expired") {
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
+          if (result.data.status === "released" || result.data.status === "expired") {
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+            }
           }
         }
       } catch {
@@ -133,7 +144,7 @@ export function useQR() {
         clearInterval(pollRef.current);
       }
     };
-  }, [qrData?.tradeId]);
+  }, [qrData?.dbTradeId]);
 
   const reset = () => {
     setQRData(null);
@@ -157,6 +168,10 @@ export function useQR() {
     generate,
     reset,
     refreshTrade,
-    status: qrData?.status === "PENDIENTE" ? "pending" : trade?.status || "pending",
+    status: trade?.status === "released" ? "released"
+      : trade?.status === "expired" ? "expired"
+      : qrData?.status === "COMPLETADA" ? "released"
+      : qrData?.status === "CANCELADA" ? "expired"
+      : "pending",
   };
 }
