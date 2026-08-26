@@ -108,6 +108,7 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
           source_of_funds: "Ahorro personal",
           destination_of_funds: "Inversion",
           income_level: "1000 - 2000",
+          doc_provider_id: "SEIP-003",
           idempotency_key: data.wallet,
         });
         customerId = customerResult.id;
