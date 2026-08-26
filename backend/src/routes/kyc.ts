@@ -53,7 +53,32 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
     let customerId: string | null = null;
 
     if (process.env.STEREUM_MOCK_KYC === "true") {
-      logger.info({ wallet: data.wallet }, "SEGIP validation using MOCK mode");
+      logger.info({ wallet: data.wallet }, "SEGIP validation using MOCK mode (skipped)");
+
+      // Step 1: Still create customer in Stereum to get a real ID for quotes
+      const existing = await prisma.customer.findUnique({ where: { wallet: data.wallet } });
+      if (existing?.stereumCustomerId && !existing.stereumCustomerId.startsWith("MOCK-")) {
+        customerId = existing.stereumCustomerId;
+        logger.info({ wallet: data.wallet, customerId }, "Using existing Stereum customer ID");
+      } else {
+        const customerResult = await kycService.createCustomer({
+          name: data.name,
+          lastname: data.lastname,
+          document_type: data.documentType,
+          document_number: data.documentNumber,
+          country: "BO",
+          state_of_residence: "BO_S",
+          economic_activity: "Otros",
+          source_of_funds: "Ahorro personal",
+          destination_of_funds: "Inversion",
+          income_level: "1000 - 2000",
+          doc_provider_id: "SEIP-003",
+          idempotency_key: data.wallet,
+        });
+        customerId = customerResult.id;
+        logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum (mock KYC)");
+      }
+
       result = {
         status: "VERIFIED" as const,
         fields: {
@@ -64,7 +89,6 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         },
         validationId: 9999,
       };
-      customerId = `MOCK-${Date.now()}`;
     } else {
       // Step 1: Create customer first (Stereum requires active USDT account before SEGIP)
       const existing = await prisma.customer.findUnique({ where: { wallet: data.wallet } });
@@ -227,22 +251,23 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
 
     let result;
 
-    // Mock mode
+    // Mock mode — skip SEGIP but still create customer in Stereum
     if (process.env.STEREUM_MOCK_KYC === "true") {
-      logger.info({ wallet: data.wallet }, "Customer registration using MOCK mode");
-      result = {
-        id: `MOCK-${Date.now()}`,
+      logger.info({ wallet: data.wallet }, "Customer registration using MOCK mode (skip SEGIP)");
+      result = await kycService.createCustomer({
         name: data.name,
         lastname: data.lastname,
-        country: "BO",
         document_type: data.documentType,
         document_number: data.documentNumber,
+        country: "BO",
         state_of_residence: data.stateOfResidence,
+        economic_activity: data.economicActivity,
         source_of_funds: data.sourceOfFunds,
         destination_of_funds: data.destinationOfFunds,
-        contracted_services: "QR",
-        income_level: data.incomeLevel,
-      };
+        income_level: mapIncomeLevelToFrontend(data.incomeLevel),
+        doc_provider_id: "SEIP-003",
+        idempotency_key: data.wallet,
+      });
     } else {
       result = await kycService.createCustomer({
         name: data.name,
