@@ -17,7 +17,7 @@ export default function ComprarContent() {
   const address = mockEnabled ? mockAddress : wagmiAddress;
   const isConnectedOrMock = isConnected || mockEnabled;
   const [amount, setAmount] = useState<string>("");
-  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, mockEnabled ? mockAddress : undefined);
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, mockEnabled ? mockAddress : undefined, !qrData);
   const {
     qrData,
     trade,
@@ -27,6 +27,7 @@ export default function ComprarContent() {
     generate,
     reset,
     refreshTrade,
+    isMock,
     status,
   } = useQR();
 
@@ -182,6 +183,7 @@ export default function ComprarContent() {
             tradeId={qrData.tradeId}
             dbTradeId={qrData.dbTradeId}
             txHash={trade?.status === "released" ? (trade as any).releaseTxHash : null}
+            isMock={isMock}
             onPaymentSimulated={refreshTrade}
           />
 

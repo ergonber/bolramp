@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { getQuote, type Quote } from "@/lib/api";
 
-export function useQuote(amount: number | null, walletOverride?: string) {
+export function useQuote(amount: number | null, walletOverride?: string, enabled = true) {
   const { address: wagmiAddress } = useAccount();
   const address = walletOverride || wagmiAddress;
   const [quote, setQuote] = useState<Quote | null>(null);
@@ -32,10 +32,11 @@ export function useQuote(amount: number | null, walletOverride?: string) {
   }, [amount, address]);
 
   useEffect(() => {
+    if (!enabled) return;
     fetchQuote();
     const interval = setInterval(fetchQuote, 30000);
     return () => clearInterval(interval);
-  }, [fetchQuote]);
+  }, [fetchQuote, enabled]);
 
   return { quote, loading, error, refetch: fetchQuote };
 }
