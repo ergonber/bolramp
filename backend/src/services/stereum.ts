@@ -84,10 +84,15 @@ export interface StereumWebhookPayload {
 
 export class StereumService {
   private apiKey: string;
+  private webhookSecret: string;
 
   constructor() {
     const env = getEnv();
     this.apiKey = env.STEREUM_API_KEY;
+    this.webhookSecret = env.STEREUM_WEBHOOK_SECRET || env.STEREUM_API_KEY;
+    if (!env.STEREUM_WEBHOOK_SECRET) {
+      logger.warn("STEREUM_WEBHOOK_SECRET not set — falling back to API_KEY for HMAC (INSECURE)");
+    }
   }
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -167,10 +172,11 @@ export class StereumService {
 
   validateWebhookSignature(payload: string, signature: string, timestamp: string): boolean {
     const expectedSignature = crypto
-      .createHmac("sha256", this.apiKey)
+      .createHmac("sha256", this.webhookSecret)
       .update(`${timestamp}.${payload}`)
       .digest("hex");
 
+    logger.info({ expected: expectedSignature.slice(0, 8) + "...", received: signature?.slice(0, 8) + "..." }, "HMAC validation");
     return signature === expectedSignature;
   }
 

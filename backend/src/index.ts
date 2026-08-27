@@ -49,6 +49,20 @@ async function main() {
 
   app.listen(env.PORT, () => {
     logger.info(`Onramp backend running on port ${env.PORT}`);
+
+    // Keep-alive: ping self every 10 minutes to prevent Render free tier sleep
+    if (env.NODE_ENV === "production") {
+      const KEEP_ALIVE_MS = 10 * 60 * 1000; // 10 minutes
+      setInterval(async () => {
+        try {
+          const res = await fetch(`http://localhost:${env.PORT}/health`);
+          logger.debug({ status: res.status }, "Keep-alive ping");
+        } catch {
+          logger.warn("Keep-alive ping failed");
+        }
+      }, KEEP_ALIVE_MS);
+      logger.info("Keep-alive scheduler started (every 10 min)");
+    }
   });
 }
 

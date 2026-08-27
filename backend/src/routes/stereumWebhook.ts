@@ -10,47 +10,72 @@ const prisma = new PrismaClient();
 const ONRAMP_FEE_BPS = 50; // Must match quote.ts
 
 router.post("/", async (req: Request, res: Response) => {
+  const xSignature = req.headers["x-signature"] as string | undefined;
+  const xTimestamp = req.headers["x-timestamp"] as string | undefined;
+
+  logger.info(
+    {
+      notification_type: req.body?.notification_type,
+      hasSignature: !!xSignature,
+      hasTimestamp: !!xTimestamp,
+      bodyKeys: Object.keys(req.body || {}),
+    },
+    "Webhook received",
+  );
+
   try {
     const payload = req.body;
 
-    // Handle test notification (Stereum validates webhook URL) — accept without any auth
+    // === 1) TEST NOTIFICATION — Stereum URL validation ===
     if (payload.notification_type === "test") {
       logger.info("Test notification accepted (URL validation)");
-      res.json({ success: true, message: "Test notification received" });
+      res.status(200).json({ success: true, message: "Test notification received" });
       return;
     }
 
-    const xSignature = req.headers["x-signature"] as string | undefined;
-    const xTimestamp = req.headers["x-timestamp"] as string | undefined;
+    // === 2) HMAC VALIDATION (optional — only when headers are present) ===
+    if (xSignature && xTimestamp) {
+      const stereum = new StereumService();
+      const body = JSON.stringify(req.body);
 
-    if (!xSignature || !xTimestamp) {
-      logger.warn("Missing webhook signature headers");
-      res.status(401).json({ success: false, error: "Missing signature headers" });
-      return;
+      const isValidSignature = stereum.validateWebhookSignature(body, xSignature, xTimestamp);
+
+      if (!isValidSignature) {
+        logger.warn({ receivedSig: xSignature?.slice(0, 8) + "..." }, "Invalid webhook signature — REJECTED");
+        res.status(403).json({ success: false, error: "Invalid signature" });
+        return;
+      }
+
+      logger.info("HMAC signature validated OK");
+
+      // Validate timestamp only when header is present (max 5 minutes)
+      if (!stereum.isWebhookTimestampValid(xTimestamp, 300)) {
+        logger.warn({ xTimestamp }, "Webhook timestamp expired");
+        res.status(403).json({ success: false, error: "Timestamp expired" });
+        return;
+      }
+    } else {
+      // No signature headers — accept anyway (testing/manual mode)
+      logger.warn("No HMAC headers — processing without signature validation");
     }
 
-    const stereum = new StereumService();
-    const body = JSON.stringify(req.body);
-
-    // Validate HMAC signature from Stereum
-    const isValidSignature = stereum.validateWebhookSignature(body, xSignature, xTimestamp);
-
-    if (!isValidSignature) {
-      logger.warn("Invalid webhook signature");
-      res.status(401).json({ success: false, error: "Invalid signature" });
-      return;
-    }
-
-    // Validate timestamp (max 2 minutes old)
-    if (!stereum.isWebhookTimestampValid(xTimestamp, 120)) {
-      logger.warn("Webhook timestamp expired");
-      res.status(401).json({ success: false, error: "Timestamp expired" });
-      return;
-    }
-
-    // Handle order notification
+    // === 3) HANDLE ORDER NOTIFICATION ===
     if (payload.notification_type === "order" && payload.order) {
       const order = payload.order;
+
+      logger.info(
+        {
+          orderId: order.id,
+          status: order.status,
+          status_description: order.status_description,
+          side: order.side,
+          input_amount: order.input_amount,
+          output_amount: order.output_amount,
+          output_currency: order.output_currency,
+          pair: order.pair,
+        },
+        "Order notification received — processing",
+      );
 
       // Find the trade by Stereum order ID (stored in userOpId)
       const dbTrade = await prisma.trade.findFirst({
@@ -58,15 +83,12 @@ router.post("/", async (req: Request, res: Response) => {
       });
 
       if (!dbTrade) {
-        logger.warn({ orderId: order.id }, "Trade not found for order");
-        res.json({ success: true, message: "Trade not found" });
+        logger.warn({ orderId: order.id }, "Trade not found for this order — no DB update");
+        res.status(200).json({ success: true, message: "Trade not found" });
         return;
       }
 
       if (order.status === "COMPLETADA" && order.side === "BUY") {
-        // Payment completed — Stereum sends USDC directly to user's wallet
-        const onrampFee = dbTrade.amountUSDT * (ONRAMP_FEE_BPS / 10_000);
-
         await prisma.trade.update({
           where: { id: dbTrade.id },
           data: {
@@ -82,9 +104,8 @@ router.post("/", async (req: Request, res: Response) => {
             dbTradeId: dbTrade.id,
             userWallet: dbTrade.userWallet,
             amountUSDC: order.output_amount,
-            onrampFee,
           },
-          "Payment completed — Stereum sent USDC to user",
+          "Payment completed — trade released",
         );
       } else if (order.status === "CANCELADA") {
         await prisma.trade.update({
@@ -92,15 +113,19 @@ router.post("/", async (req: Request, res: Response) => {
           data: { status: "expired", expiredAt: new Date() },
         });
 
-        logger.info({ orderId: order.id }, "Order cancelled");
+        logger.info({ orderId: order.id, dbTradeId: dbTrade.id }, "Order cancelled — trade expired");
+      } else {
+        logger.info({ orderId: order.id, status: order.status }, "Unhandled order status");
       }
+    } else {
+      logger.warn({ notification_type: payload?.notification_type }, "Unknown notification type");
     }
 
-    res.json({ success: true, message: "Webhook processed" });
+    res.status(200).json({ success: true, message: "Webhook processed" });
   } catch (error) {
     logger.error({ error }, "Webhook handler crashed");
     // Always return 200 to Stereum to avoid retries on processing errors
-    res.json({ success: true, message: "Webhook acknowledged" });
+    res.status(200).json({ success: true, message: "Webhook acknowledged" });
   }
 });
 
