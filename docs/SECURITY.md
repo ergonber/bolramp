@@ -1,14 +1,14 @@
-# Security Documentation — Onramp BOB→USDT
+# Security Documentation — Onramp BOB→USDC
 
 ## Table of Contents
 1. [Architecture Overview](#architecture-overview)
 2. [Threat Model](#threat-model)
-3. [Smart Contract Security](#smart-contract-security)
-4. [Backend Security](#backend-security)
-5. [Frontend Security](#frontend-security)
-6. [Emergency Procedures](#emergency-procedures)
-7. [Key Management](#key-management)
-8. [Monitoring & Alerts](#monitoring-alerts)
+3. [Backend Security](#backend-security)
+4. [Frontend Security](#frontend-security)
+5. [Emergency Procedures](#emergency-procedures)
+6. [Key Management](#key-management)
+7. [Monitoring & Alerts](#monitoring-alerts)
+8. [Changelog](#changelog)
 
 ---
 
@@ -20,17 +20,16 @@ User (Browser)
 Frontend (Next.js)
     ↓ API calls + x-api-key
 Backend (Node.js + Express)
-    ↓ Ethers.js
-Polygon Smart Contract (EscrowMaster)
-    ↓ SafeERC20
-USDT Token
+    ↓ Stereum API
+Stereum (KYC + Payments)
+    ↓ Polygon RPC
+USDC on Polygon
 ```
 
 **Trust boundaries:**
-- Frontend ↔ Backend: API key authentication
-- Backend ↔ Contract: OPERATOR private key signs EIP-712
-- Contract ↔ USDT: Standard ERC-20 approvals
-- OpenBCB ↔ Backend: HMAC webhook signature
+- Frontend ↔ Backend: API key or JWT authentication
+- Backend ↔ Stereum: HMAC webhook signature + API key
+- Backend ↔ Polygon: OPERATOR private key signs transactions
 
 ---
 
@@ -39,100 +38,27 @@ USDT Token
 ### Actors
 | Actor | Access | Incentive |
 |-------|--------|-----------|
-| User | Frontend only | Buy USDT at fair rate |
-| LP | Frontend + Contract (LP_ADMIN) | Earn spread on trades |
-| OPERATOR | Backend + Contract | Earn platform fee |
-| ARBITER | Contract (pause/unpause) | Resolve disputes |
-| Admin | Backend + Contract | System administration |
+| User | Frontend only | Buy USDC at fair rate |
+| OPERATOR | Backend | Earn platform fee |
+| Admin | Backend + auth | System administration |
 | Attacker | Any | Steal funds, grief users |
 
 ### Assets
-- USDT in EscrowMaster contract
 - OPERATOR private key
-- User payment data
-- Pricing data
-
----
-
-## Smart Contract Security
-
-### Controls Implemented
-
-| Control | Implementation | Status |
-|---------|---------------|--------|
-| Reentrancy | `nonReentrant` on all state-changing functions | ✅ |
-| Access Control | `AccessControlEnumerable` with 3 roles | ✅ |
-| Idempotency | `userOpId` mapping prevents double-trade | ✅ |
-| Signature Replay | `_signatureUsed` mapping | ✅ |
-| Integer Overflow | Solidity 0.8.x built-in checks | ✅ |
-| Safe Transfers | `SafeERC20` for all USDT operations | ✅ |
-| Emergency Stop | `Pausable` with ARBITER role | ✅ |
-| Time-lock | 24h delay on LP withdrawals | ✅ |
-| Daily Limits | Per-LP configurable limits | ✅ |
-
-### Residual Risks
-
-#### R1: OPERATOR Compromise
-**Impact:** CRITICAL — Can sign releases for any trade
-**Mitigation:**
-- Use hardware wallet or MPC for OPERATOR key
-- Monitor all release transactions
-- Implement rate limiting on releases
-- Have ARBITER ready to pause immediately
-
-**Detection:**
-- Alert if release rate > X per hour
-- Alert if release amount > threshold
-- Alert if new LP is added
-
-#### R2: ARBITER Compromise
-**Impact:** HIGH — Can pause/unpause contract
-**Mitigation:**
-- Use multi-sig wallet for ARBITER
-- Time-lock on unpause (future enhancement)
-
-#### R3: LP Griefing
-**Impact:** LOW — LP cannot steal funds, only delay
-**Mitigation:**
-- 24h time-lock prevents instant withdrawal
-- Trades expire and return funds to LP
-
-#### R4: Front-Running
-**Impact:** MEDIUM — MEV bots could sandwich trades
-**Mitigation:**
-- Quote expires in 120 seconds
-- Trade amount is fixed at quote time
-- Consider commit-reveal in future version
-
-### Gas Optimization Report
-
-| Function | Gas (est.) | Notes |
-|----------|-----------|-------|
-| `depositUSDT` | ~55,000 | Includes SafeERC20 transfer |
-| `withdrawLP` | ~45,000 | Includes SafeERC20 transfer |
-| `lockTrade` | ~180,000 | Includes LP lookup + trade creation |
-| `release` | ~120,000 | Includes signature verification |
-| `expireTrade` | ~40,000 | Simple state change |
-| `getLockedBalance` | ~5,000 + 500/trade | O(1) with tracking mapping |
+- User PII (KYC data)
+- Stereum API key
+- JWT secret
 
 ---
 
 ## Backend Security
 
 ### Authentication
-- API key in `x-api-key` header for all endpoints
-- HMAC signature verification for webhooks
-- Rate limiting per IP (60 req/min general, 10 req/min for QR)
-
-### Data Validation
-- Zod schemas for all inputs
-- SQL injection prevented by Prisma ORM
-- No raw SQL queries
-
-### Secrets Management
-- Private keys in environment variables only
-- Never logged or exposed in API responses
-- Use secret manager in production (AWS Secrets Manager, Vault)
+| Mechanism | Usage | Notes |
+|-----------|-------|-------|
+| API key (`x-api-key`) | All protected endpoints | Compared with `crypto.timingSafeEqual` |
+| JWT (`Authorization: Bearer`) | User actions (KYC reset) | HMAC-SHA256 signed, 32+ char secret |
+| HMAC signature | Stereum webhook | `HMAC-SHA256(secret, rawBody)` with timestamp freshness check |
 
 ### Rate Limiting
 | Endpoint | Limit | Window |
@@ -140,7 +66,43 @@ USDT Token
 | General API | 60/min | Per IP |
 | Quote | 30/min | Per IP |
 | QR Generate | 10/min | Per IP |
+| KYC validate/register | 10/min | Per IP |
+| KYC reset | 3/min | Per IP |
 | Webhook | 100/min | Per IP |
+
+### Endpoint Protection
+| Endpoint | Auth | Rate Limit | Notes |
+|----------|------|------------|-------|
+| `POST /api/trade/:id/simulate-payment` | API key/JWT | General | Disabled in prod unless `SIMULATE_PAYMENTS=true` |
+| `POST /api/kyc/reset` | API key/JWT + wallet ownership | 3/min | Requires JWT wallet match or API key |
+| `POST /api/kyc/validate` | None (public) | 10/min | Zod validated |
+| `POST /api/kyc/register` | None (public) | 10/min | Zod validated |
+| `POST /api/webhook/stereum` | HMAC signature | 100/min | Raw body capture for HMAC |
+| `GET /api/admin/status` | API key/JWT | General | Admin only |
+
+### Data Validation
+- Zod schemas for ALL inputs (body, query, params)
+- SQL injection prevented by Prisma ORM
+- No raw SQL queries
+
+### Secrets Management
+| Secret | Required | Notes |
+|--------|----------|-------|
+| `JWT_SECRET` | Always | Min 32 chars, no default — server fails to start if missing |
+| `API_KEY` | Always | No default |
+| `OPERATOR_PRIVATE_KEY` | Always | Min 64 chars |
+| `STEREUM_API_KEY` | Always | Redacted in all docs |
+| `STEREUM_WEBHOOK_SECRET` | Optional | For HMAC validation |
+
+### Error Handling
+- Production: generic error messages only (no stack traces, no internal details)
+- Development: full error messages for debugging
+- All errors logged server-side with `pino`
+
+### CORS
+- Restricted to `CORS_ORIGINS` env var (comma-separated origins)
+- Default: `http://localhost:3000` (development only)
+- Production: must be explicitly set to frontend domain
 
 ---
 
@@ -149,103 +111,80 @@ USDT Token
 ### Input Validation
 - Client-side validation before API calls
 - Server-side validation (defense in depth)
-- Amount limits: min 1 USDT, max 100,000 USDT
+- Amount limits: min 1 USDC, max 100,000 USDC
 
 ### Wallet Security
 - RainbowKit handles wallet connection
 - No private keys stored in frontend
 - Verify chain ID matches Polygon
 
-### Display Security
-- Always show contract address for verification
-- Display USDT amount clearly
-- Show rate breakdown before confirmation
-
 ---
 
 ## Emergency Procedures
 
-### Emergency Pause
-1. ARBITER calls `pause()` on contract
-2. All deposits, locks, releases, withdrawals stop
-3. Existing trades remain locked (funds safe)
-4. Investigate issue
-5. ARBITER calls `unpause()` when resolved
+### KYC Reset
+1. User requests reset via `POST /api/kyc/reset`
+2. Requires authentication (JWT wallet match or API key)
+3. KYC status set to "pending"
+4. User must re-validate identity
 
-**Commands:**
-```bash
-# Pause (via Etherscan or custom script)
-cast send $ESCROW_ADDRESS "pause()" --private-key $ARBITER_KEY
-
-# Unpause
-cast send $ESCROW_ADDRESS "unpause()" --private-key $ARBITER_KEY
-```
-
-### Key Rotation (OPERATOR)
-1. Generate new OPERATOR key pair
-2. Deploy new EscrowMaster with new OPERATOR
-3. Migrate LPs and pending trades
-4. Pause old contract
-5. Verify new contract works
-
-### Fund Recovery
-- USDT can only be withdrawn by LPs (after time-lock)
-- Admin can rescue accidentally sent ETH via `rescueETH()`
-- No admin backdoor to withdraw USDT (by design)
+### Key Rotation
+1. Generate new secrets
+2. Update environment variables
+3. Restart backend
+4. Update webhook secret in Stereum dashboard
 
 ---
 
 ## Key Management
 
 ### OPERATOR Key
-- **Purpose:** Signs EIP-712 release messages
-- **Storage:** Hardware wallet or HSM in production
-- **Rotation:** Quarterly or after any suspected compromise
-- **Backup:** Encrypted backup in secure location
+- **Purpose:** Signs release transactions on Polygon
+- **Storage:** Environment variable
+- **Rotation:** After any suspected compromise
 
-### ARBITER Key
-- **Purpose:** Pause/unpause contract in emergencies
-- **Storage:** Multi-sig wallet (Gnosis Safe recommended)
-- **Access:** Multiple trusted parties
+### JWT Secret
+- **Purpose:** Signs user JWT tokens
+- **Storage:** Environment variable
+- **Minimum:** 32 characters
+- **Rotation:** Quarterly
 
-### Admin Key
-- **Purpose:** Deploy contract, set treasury, rescue ETH
-- **Storage:** Hardware wallet
-- **Post-deploy:** Transfer DEFAULT_ADMIN to multi-sig
-
-### Deployer Key
-- **Purpose:** One-time deployment only
-- **Post-deploy:** Can be rotated or destroyed
+### API Key
+- **Purpose:** Backend authentication
+- **Storage:** Environment variable
+- **Rotation:** After any suspected compromise
 
 ---
 
 ## Monitoring Checklist
 
-### On-Chain
-- [ ] Contract balance (USDT)
-- [ ] Number of locked trades
-- [ ] LP deposits/withdrawals
-- [ ] Release transactions
-
 ### Backend
 - [ ] API response times
-- [ ] Error rates
+- [ ] Error rates (5xx)
+- [ ] Failed auth attempts
+- [ ] Rate limit hits
 - [ ] Webhook delivery success
-- [ ] Quote generation rate
 
 ### Business
 - [ ] Daily trading volume
-- [ ] Active LPs
+- [ ] KYC completion rate
 - [ ] Average trade size
-- [ ] P2P rate spread
 
 ---
 
-## Audit Log
+## Changelog
 
-| Date | Change | Auditor |
-|------|--------|---------|
-| 2025-01-15 | Initial security review | Onramp Team |
-| 2025-01-15 | Added LP_ADMIN_ROLE to depositUSDT | Onramp Team |
-| 2025-01-15 | Restricted expireTrade to OPERATOR | Onramp Team |
-| 2025-01-15 | Added idempotency to webhook | Onramp Team |
+| Date | Change |
+|------|--------|
+| 2025-01-15 | Initial security review |
+| 2025-01-15 | Added LP_ADMIN_ROLE to depositUSDT |
+| 2025-01-15 | Restricted expireTrade to OPERATOR |
+| 2025-01-15 | Added idempotency to webhook |
+| 2026-09-21 | **Security hardening:** timingSafeEqual for API key/JWT |
+| 2026-09-21 | **JWT_SECRET mandatory** — no insecure default, min 32 chars |
+| 2026-09-21 | **simulate-payment** protected — auth required, disabled in prod by default |
+| 2026-09-21 | **kyc/reset** protected — auth + wallet ownership required |
+| 2026-09-21 | **KYC rate limiting** — validate/register 10/min, reset 3/min |
+| 2026-09-21 | **Error messages** sanitized in production — no stack leaks |
+| 2026-09-21 | **Webhook HMAC** — raw body capture, two-variant tolerance, timestamp freshness |
+| 2026-09-21 | **CORS** restricted to explicit origins via CORS_ORIGINS env |

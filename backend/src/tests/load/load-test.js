@@ -66,7 +66,7 @@ export default function () {
     `${API_BASE}/api/qr`,
     JSON.stringify({
       userWallet: TEST_WALLET,
-      amountUSDT: quoteData.amountUSDT,
+      amountUSDC: quoteData.amountUSDC,
       quoteId: "load-test",
     }),
     { headers },

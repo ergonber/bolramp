@@ -12,8 +12,16 @@ declare global {
   namespace Express {
     interface Request {
       auth?: AuthPayload;
+      rawBody?: Buffer;
     }
   }
+}
+
+function safeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
@@ -34,7 +42,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
 
   // Fallback to API key
   const apiKey = req.headers["x-api-key"];
-  if (!apiKey || apiKey !== env.API_KEY) {
+  if (!apiKey || typeof apiKey !== "string" || !safeCompare(apiKey, env.API_KEY)) {
     res.status(401).json({
       success: false,
       error: "Invalid API key",
@@ -43,7 +51,7 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     return;
   }
 
-  req.auth = { apiKey: apiKey as string };
+  req.auth = { apiKey };
   next();
 }
 
@@ -58,7 +66,7 @@ function verifyJWT(token: string, secret: string): { wallet: string; role: strin
     .update(`${header}.${payload}`)
     .digest("base64url");
 
-  if (signature !== expectedSig) throw new Error("Invalid JWT signature");
+  if (!safeCompare(signature, expectedSig)) throw new Error("Invalid JWT signature");
 
   const data = JSON.parse(Buffer.from(payload, "base64url").toString());
 
@@ -68,5 +76,3 @@ function verifyJWT(token: string, secret: string): { wallet: string; role: strin
 
   return data;
 }
-
-

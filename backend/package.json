@@ -2,7 +2,7 @@
   "name": "onramp-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "BOB→USDT onramp backend service",
+  "description": "BOB→USDC onramp backend service",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "npm install --include=dev && npx prisma generate && tsc",

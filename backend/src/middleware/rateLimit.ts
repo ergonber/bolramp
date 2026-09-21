@@ -48,4 +48,28 @@ export const confirmLimiter = rateLimit({
   },
 });
 
+export const kycLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many KYC requests",
+    timestamp: new Date().toISOString(),
+  },
+});
+
+export const kycResetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many KYC reset requests",
+    timestamp: new Date().toISOString(),
+  },
+});
+
 

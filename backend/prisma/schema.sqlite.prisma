@@ -12,7 +12,7 @@ model Trade {
   tradeId       Int?      @unique
   userWallet    String
   lpAddress     String
-  amountUSDT    Float
+  amountUSDC    Float
   amountBOB     Float
   rate          Float
   lpSpread      Int       @default(50)
@@ -58,7 +58,7 @@ model RateSnapshot {
   source        String
   rate          Float
   currency      String    @default("BOB")
-  asset         String    @default("USDT")
+  asset         String    @default("USDC")
   timestamp     DateTime  @default(now())
 
   @@index([source, timestamp])
@@ -76,4 +76,28 @@ model WebhookLog {
 
   @@index([processed])
   @@index([tradeId])
+}
+
+model Customer {
+  id                String    @id @default(cuid())
+  wallet            String    @unique
+  stereumCustomerId String?   @unique
+  name              String
+  lastname          String
+  documentType      String    @default("CI")
+  documentNumber    String
+  complementNumber  String?
+  country           String    @default("BO")
+  stateOfResidence  String
+  economicActivity  String?
+  sourceOfFunds     String?
+  destinationOfFunds String?
+  incomeLevel       String?
+  kycStatus         String    @default("pending")
+  kycValidatedAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([documentNumber])
+  @@index([wallet])
 }

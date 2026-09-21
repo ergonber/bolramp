@@ -170,19 +170,52 @@ export class StereumService {
 
   // ==================== WEBHOOK VALIDATION ====================
 
-  validateWebhookSignature(payload: string, signature: string, timestamp: string): boolean {
-    const expectedSignature = crypto
-      .createHmac("sha256", this.webhookSecret)
-      .update(`${timestamp}.${payload}`)
-      .digest("hex");
+  /**
+   * Validate webhook signature against raw body.
+   * Tries two variants per manual ambiguity:
+   *   a) HMAC(secret, rawBody)
+   *   b) HMAC(secret, `${timestamp}.${rawBody}`)
+   * Returns which variant matched (or null if none).
+   */
+  validateWebhookSignature(
+    rawBody: Buffer,
+    signature: string,
+    timestamp: string | undefined,
+  ): "body" | "timestamp.body" | null {
+    const sigBuf = Buffer.from(signature, "hex");
+    if (sigBuf.length !== 32) return null;
 
-    logger.info({ expected: expectedSignature.slice(0, 8) + "...", received: signature?.slice(0, 8) + "..." }, "HMAC validation");
-    return signature === expectedSignature;
+    // Variant a: HMAC(secret, rawBody)
+    const hmacA = crypto.createHmac("sha256", this.webhookSecret).update(rawBody).digest();
+    if (sigBuf.length === hmacA.length && crypto.timingSafeEqual(sigBuf, hmacA)) {
+      logger.info("HMAC matched variant: rawBody");
+      return "body";
+    }
+
+    // Variant b: HMAC(secret, `${timestamp}.${rawBody}`)
+    if (timestamp) {
+      const payload = Buffer.concat([Buffer.from(`${timestamp}.`, "utf8"), rawBody]);
+      const hmacB = crypto.createHmac("sha256", this.webhookSecret).update(payload).digest();
+      if (sigBuf.length === hmacB.length && crypto.timingSafeEqual(sigBuf, hmacB)) {
+        logger.info("HMAC matched variant: timestamp.body");
+        return "timestamp.body";
+      }
+    }
+
+    logger.warn(
+      {
+        expectedPrefixA: hmacA.toString("hex").slice(0, 16) + "...",
+        receivedPrefix: signature.slice(0, 16) + "...",
+      },
+      "HMAC mismatch — no variant matched",
+    );
+    return null;
   }
 
   isWebhookTimestampValid(timestamp: string, maxAgeSeconds = 120): boolean {
     const now = Math.floor(Date.now() / 1000);
     const webhookTime = parseInt(timestamp, 10);
+    if (isNaN(webhookTime)) return false;
     return Math.abs(now - webhookTime) <= maxAgeSeconds;
   }
 }

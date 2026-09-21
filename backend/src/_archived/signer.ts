@@ -21,19 +21,19 @@ export class SignerService {
   async signRelease(
     tradeId: number,
     user: string,
-    amountUSDT: number,
+    amountUSDC: number,
     userOpId: string,
   ): Promise<string> {
     const domainSeparator = await this.getDomainSeparator();
 
     const releaseTypesHash = ethers.keccak256(
-      ethers.toUtf8Bytes("Release(uint256 tradeId,address user,uint256 amountUSDT,bytes32 userOpId)"),
+      ethers.toUtf8Bytes("Release(uint256 tradeId,address user,uint256 amountUSDC,bytes32 userOpId)"),
     );
 
     const structHash = ethers.keccak256(
       ethers.AbiCoder.defaultAbiCoder().encode(
         ["bytes32", "uint256", "address", "uint256", "bytes32"],
-        [releaseTypesHash, tradeId, user, amountUSDT, userOpId],
+        [releaseTypesHash, tradeId, user, amountUSDC, userOpId],
       ),
     );
 
@@ -46,7 +46,7 @@ export class SignerService {
 
     const signature = await this.wallet.signMessage(ethers.getBytes(messageHash));
 
-    logger.info({ tradeId, user, amountUSDT }, "Release signed");
+    logger.info({ tradeId, user, amountUSDC }, "Release signed");
 
     return signature;
   }

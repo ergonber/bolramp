@@ -89,17 +89,17 @@ export function calculateQuote(
   lpSpreadBps: number,
   platformFeeBps: number,
 ): {
-  amountUSDT: number;
+  amountUSDC: number;
   rate: number;
   lpSpread: number;
   platformFee: number;
 } {
   const rateWithSpread = p2pRate * (1 + lpSpreadBps / 10_000);
-  const amountUSDT = amountBOB / rateWithSpread;
-  const feeAmount = amountUSDT * (platformFeeBps / 10_000);
+  const amountUSDC = amountBOB / rateWithSpread;
+  const feeAmount = amountUSDC * (platformFeeBps / 10_000);
 
   return {
-    amountUSDT: amountUSDT - feeAmount,
+    amountUSDC: amountUSDC - feeAmount,
     rate: rateWithSpread,
     lpSpread: lpSpreadBps,
     platformFee: platformFeeBps,

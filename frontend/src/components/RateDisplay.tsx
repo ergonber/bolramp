@@ -5,7 +5,7 @@ interface RateDisplayProps {
   lpSpread: number;
   platformFee: number;
   amountBOB: number;
-  amountUSDT: number;
+  amountUSDC: number;
 }
 
 export function RateDisplay({
@@ -13,7 +13,7 @@ export function RateDisplay({
   lpSpread,
   platformFee,
   amountBOB,
-  amountUSDT,
+  amountUSDC,
 }: RateDisplayProps) {
   return (
     <div className="glass-card rounded-2xl p-5 space-y-4">
@@ -28,7 +28,7 @@ export function RateDisplay({
       <div className="space-y-2.5">
         <div className="flex justify-between text-sm">
           <span className="text-slate-400">Tasa P2P</span>
-          <span className="font-mono font-medium text-slate-200">{rate.toFixed(2)} BOB/USDT</span>
+          <span className="font-mono font-medium text-slate-200">{rate.toFixed(2)} BOB/USDC</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-slate-400">Spread LP</span>
@@ -49,7 +49,7 @@ export function RateDisplay({
           <div className="flex justify-between items-center">
             <span className="text-slate-400 text-sm">Recibes</span>
             <span className="font-bold text-xl text-emerald-400">
-              {amountUSDT.toFixed(4)} <span className="text-sm font-normal text-slate-500">USDT</span>
+              {amountUSDC.toFixed(4)} <span className="text-sm font-normal text-slate-500">USDC</span>
             </span>
           </div>
         </div>

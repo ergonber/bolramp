@@ -2,7 +2,7 @@
   "name": "onramp",
   "version": "0.1.0",
   "private": true,
-  "description": "BOB→USDT Onramp MVP — Non-custodial on-ramp for Polygon",
+  "description": "BOB→USDC Onramp MVP — Non-custodial on-ramp for Polygon",
   "scripts": {
     "dev": "docker compose up",
     "dev:backend": "cd backend && npm run dev",

@@ -12,7 +12,7 @@ model Trade {
   tradeId       Int?      @unique
   userWallet    String
   lpAddress     String
-  amountUSDT    Float
+  amountUSDC    Float
   amountBOB     Float
   rate          Float
   lpSpread      Int       @default(50)
@@ -58,7 +58,7 @@ model RateSnapshot {
   source        String
   rate          Float
   currency      String    @default("BOB")
-  asset         String    @default("USDT")
+  asset         String    @default("USDC")
   timestamp     DateTime  @default(now())
 
   @@index([source, timestamp])

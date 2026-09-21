@@ -1,7 +1,8 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import { AppError } from "../middleware/errorHandler.js";
+import { authMiddleware } from "../middleware/auth.js";
 import pino from "pino";
 
 const logger = pino({ name: "trade-route" });
@@ -53,7 +54,7 @@ router.get("/history", async (req: Request, res: Response) => {
           status: t.status,
           userWallet: t.userWallet,
           lpAddress: t.lpAddress,
-          amountUSDT: Number(t.amountUSDT),
+          amountUSDC: Number(t.amountUSDC),
           amountBOB: Number(t.amountBOB),
           rate: Number(t.rate),
           releaseTxHash: t.releaseTxHash,
@@ -100,7 +101,7 @@ router.get("/:id", async (req: Request, res: Response) => {
         status: trade.status,
         userWallet: trade.userWallet,
         lpAddress: trade.lpAddress,
-        amountUSDT: trade.amountUSDT,
+        amountUSDC: trade.amountUSDC,
         amountBOB: trade.amountBOB,
         rate: trade.rate,
         releaseTxHash: trade.releaseTxHash,
@@ -117,7 +118,23 @@ router.get("/:id", async (req: Request, res: Response) => {
 
 // ==================== SIMULATE PAYMENT (TEST ONLY) ====================
 
-router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
+function simulatePaymentGuard(req: Request, res: Response, next: NextFunction): void {
+  const isProd = process.env.NODE_ENV === "production";
+  const isEnabled = process.env.SIMULATE_PAYMENTS === "true";
+
+  if (isProd && !isEnabled) {
+    res.status(403).json({
+      success: false,
+      error: "Simulate payment is disabled in production",
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+
+  authMiddleware(req, res, () => next());
+}
+
+router.post("/:id/simulate-payment", simulatePaymentGuard, async (req: Request, res: Response) => {
   const parsed = tradeIdSchema.safeParse(req.params);
 
   if (!parsed.success) {
@@ -142,7 +159,7 @@ router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
         tradeId: trade.tradeId,
         status: trade.status,
         userWallet: trade.userWallet,
-        amountUSDT: trade.amountUSDT,
+        amountUSDC: trade.amountUSDC,
       },
       message: "Trade already released",
       timestamp: new Date().toISOString(),
@@ -167,9 +184,9 @@ router.post("/:id/simulate-payment", async (req: Request, res: Response) => {
       dbTradeId: trade.id,
       status: "released",
       userWallet: trade.userWallet,
-      amountUSDT: trade.amountUSDT,
+      amountUSDC: trade.amountUSDC,
     },
-    message: "Pago simulado exitosamente. Stereum envia USDT al usuario.",
+    message: "Pago simulado exitosamente. Stereum envia USDC al usuario.",
     timestamp: new Date().toISOString(),
   });
 });

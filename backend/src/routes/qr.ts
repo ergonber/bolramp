@@ -1,15 +1,19 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { StereumService } from "../services/stereum.js";
-import { SignerService } from "../services/signer.js";
 import { qrLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
 import crypto from "crypto";
+import { ethers } from "ethers";
 import pino from "pino";
 
 const logger = pino({ name: "qr-route" });
 const router = Router();
 const prisma = new PrismaClient();
+
+function getOperatorAddress(env: { OPERATOR_PRIVATE_KEY: string }): string {
+  return new ethers.Wallet(env.OPERATOR_PRIVATE_KEY).address;
+}
 
 const qrSchema = z.object({
   userWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -36,6 +40,9 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     let order;
     let isMock = false;
 
+    const { getEnv } = await import("../config/env.js");
+    const env = getEnv();
+
     try {
       order = await stereum.confirmOrder({
         quoteId,
@@ -47,18 +54,8 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
       logger.warn({ error: stereumError, quoteId }, "Stereum order failed, using mock mode");
 
       isMock = true;
-      const signer = new SignerService();
 
-      // Get the quote to use real amounts
-      const { getEnv } = await import("../config/env.js");
-      const env = getEnv();
-
-      // Parse quote data from quoteId to get amounts
-      const quoteRecord = await prisma.rateSnapshot.findFirst({
-        where: { source: quoteId },
-      });
-
-      // Use fallback amounts based on typical exchange rate
+      // Fallback amounts for mock mode
       const mockAmountBOB = 200;
       const mockAmountUSDC = mockAmountBOB / 11.73;
       const mockOrderId = `MOCK-${crypto.randomUUID()}`;
@@ -87,8 +84,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     }
 
     // Store trade record
-    const signer = new SignerService();
-    const lpAddress = signer.getAddress();
+    const lpAddress = getOperatorAddress(env);
 
     const mockTradeId = isMock ? -(Math.floor(Date.now() / 1000) % 2_000_000_000) : null;
 
@@ -97,7 +93,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
         tradeId: mockTradeId,
         userWallet,
         lpAddress,
-        amountUSDT: order.outputAmount,
+        amountUSDC: order.outputAmount,
         amountBOB: order.paymentInstructions.amount,
         rate: order.paymentInstructions.amount / order.outputAmount,
         lpSpread: 0,
@@ -123,7 +119,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
         lpAddress,
         qrBase64: order.paymentInstructions.qrBase64 || null,
         amountBOB: order.paymentInstructions.amount.toFixed(2),
-        amountUSDT: order.outputAmount.toFixed(2),
+        amountUSDC: order.outputAmount.toFixed(2),
         currency: order.paymentInstructions.currency || "BOB",
         network: order.paymentInstructions.network || "CSL",
         expiresAt: new Date(order.paymentInstructions.expiresAt).toISOString(),
@@ -139,7 +135,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     logger.error({ error, userWallet, quoteId }, "Failed to create order");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Failed to generate QR",
+      error: process.env.NODE_ENV === "production" ? "Failed to generate QR" : (error instanceof Error ? error.message : "Failed to generate QR"),
       timestamp: new Date().toISOString(),
     });
   }

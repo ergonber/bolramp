@@ -50,7 +50,6 @@ export default function KycContent() {
   const { isConnected, address } = useAccount();
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [loading, setLoading] = useState(false);
-  const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -70,7 +69,6 @@ export default function KycContent() {
 
   const fetchKycStatus = async () => {
     if (!address) return;
-    setStatusLoading(true);
     try {
       const res = await fetch(`${API_BASE}/api/kyc/status/${address}`);
       const data = await res.json();
@@ -79,8 +77,6 @@ export default function KycContent() {
       }
     } catch (err) {
       console.error("Failed to fetch KYC status:", err);
-    } finally {
-      setStatusLoading(false);
     }
   };
 

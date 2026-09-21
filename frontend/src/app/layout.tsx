@@ -4,8 +4,8 @@ import { Providers } from "@/components/Providers";
 import { TestModeToggle } from "@/components/TestModeToggle";
 
 export const metadata: Metadata = {
-  title: "Onramp BOB > USDT | Convierte tus Bolivianos",
-  description: "Compra USDT con Bolivianos de forma segura y rapida en Polygon",
+  title: "Bolramp — Compra USDC con Bolivianos",
+  description: "Compra USDC con Bolivianos de forma segura y rapida en Polygon",
 };
 
 export const viewport: Viewport = {
@@ -54,12 +54,6 @@ export default function RootLayout({
                   className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
                 >
                   Historial
-                </a>
-                <a
-                  href="/lp"
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
-                >
-                  LP
                 </a>
               </nav>
             </div>

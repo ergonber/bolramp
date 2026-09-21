@@ -11,11 +11,11 @@ const USDC_ABI = [
 ];
 
 const ESCROW_ABI = [
-  "function lockTrade(address user, uint256 amountUSDT, uint256 amountBOB, uint256 rateP2P, uint256 lpSpread, uint256 platformFee, bytes32 userOpId) returns (uint256)",
+  "function lockTrade(address user, uint256 amountUSDC, uint256 amountBOB, uint256 rateP2P, uint256 lpSpread, uint256 platformFee, bytes32 userOpId) returns (uint256)",
   "function release(uint256 tradeId, bytes signature)",
   "function expireTrade(uint256 tradeId)",
   "function depositUSDC(uint256 amount)",
-  "function getTrade(uint256 tradeId) view returns (tuple(address user, address lp, uint256 amountUSDT, uint256 amountBOB, uint256 rateP2P, uint256 lpSpread, uint256 platformFee, uint256 createdAt, uint8 status, bytes32 userOpId))",
+  "function getTrade(uint256 tradeId) view returns (tuple(address user, address lp, uint256 amountUSDC, uint256 amountBOB, uint256 rateP2P, uint256 lpSpread, uint256 platformFee, uint256 createdAt, uint8 status, bytes32 userOpId))",
   "function getAvailableBalance(address lp) view returns (uint256)",
   "function getLockedBalance(address lp) view returns (uint256)",
   "function tradeCount() view returns (uint256)",
@@ -64,7 +64,7 @@ export class EscrowService {
     return {
       user: trade.user,
       lp: trade.lp,
-      amountUSDT: Number(trade.amountUSDT),
+      amountUSDC: Number(trade.amountUSDC),
       amountBOB: Number(trade.amountBOB),
       rate: Number(trade.rateP2P),
       lpSpread: Number(trade.lpSpread),
@@ -102,7 +102,7 @@ export class EscrowService {
 
   async lockTrade(
     user: string,
-    amountUSDT: number,
+    amountUSDC: number,
     amountBOB: number,
     rateP2P: number,
     lpSpread: number,
@@ -111,7 +111,7 @@ export class EscrowService {
   ): Promise<{ hash: string; tradeId: number }> {
     const tx = await this.contractWithSigner.lockTrade(
       user,
-      amountUSDT,
+      amountUSDC,
       amountBOB,
       rateP2P,
       lpSpread,
@@ -119,7 +119,7 @@ export class EscrowService {
       userOpId,
     );
 
-    logger.info({ txHash: tx.hash, user, amountUSDT }, "lockTrade submitted");
+    logger.info({ txHash: tx.hash, user, amountUSDC }, "lockTrade submitted");
 
     const receipt = await tx.wait();
 

@@ -25,7 +25,7 @@ const envSchema = z.object({
   TRADE_EXPIRY_SECONDS: z.coerce.number().default(300),
 
   API_KEY: z.string().min(1),
-  JWT_SECRET: z.string().min(32).default("dev-jwt-secret-change-in-production"),
+  JWT_SECRET: z.string().min(32),
   CORS_ORIGINS: z.string().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   SENTRY_DSN: z.string().url().optional(),
