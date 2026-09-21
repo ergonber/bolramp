@@ -1,0 +1,113 @@
+{
+  "info": {
+    "name": "Bolramp — Stereum Webhook Testing",
+    "_postman_id": "b01ramp-0000-4000-8000-webhookstereum",
+    "description": "Pruebas del webhook de Stereum contra el backend de Bolramp.\n\nVariables:\n- baseUrl: URL del backend (ej. https://bolramp.onrender.com)\n- webhookSecret: STEREUM_WEBHOOK_SECRET (o el API key si no hay secret)\n- apiKey: API_KEY del backend (para /logs)\n- signVariant: 'timestamp.body' (default) o 'body'\n\nEl header x-signature se calcula automaticamente con HMAC-SHA256.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://bolramp.onrender.com" },
+    { "key": "webhookSecret", "value": "" },
+    { "key": "apiKey", "value": "" },
+    { "key": "signVariant", "value": "timestamp.body" },
+    { "key": "stereumOrderId", "value": "00000000-0000-4000-8000-000000000000" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Firma HMAC-SHA256 del body crudo (solo para POST con body).",
+          "if (pm.request.method === 'POST' && pm.request.body && pm.request.body.raw) {",
+          "    const raw = pm.request.body.raw;",
+          "    const timestamp = Math.floor(Date.now() / 1000).toString();",
+          "    const secret = pm.variables.get('webhookSecret');",
+          "    const variant = pm.variables.get('signVariant') || 'timestamp.body';",
+          "    const payload = variant === 'body' ? raw : (timestamp + '.' + raw);",
+          "    const signature = CryptoJS.HmacSHA256(payload, secret).toString(CryptoJS.enc.Hex);",
+          "    pm.request.headers.upsert({ key: 'Content-Type', value: 'application/json' });",
+          "    pm.request.headers.upsert({ key: 'x-signature', value: signature });",
+          "    pm.request.headers.upsert({ key: 'x-timestamp', value: timestamp });",
+          "    console.log('Variant:', variant);",
+          "    console.log('x-signature:', signature.slice(0, 32) + '...');",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Health backend",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+      }
+    },
+    {
+      "name": "2. Webhook live (GET)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum"] }
+      }
+    },
+    {
+      "name": "3. Test notification (validacion de URL)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification_type\": \"test\",\n  \"hello\": \"world\",\n  \"id\": \"test-{{$timestamp}}\",\n  \"timestamp\": {{$timestamp}}\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum"] }
+      }
+    },
+    {
+      "name": "4. Order COMPLETADA (pago aprobado)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification_type\": \"order\",\n  \"id\": \"{{$guid}}\",\n  \"timestamp\": {{$timestamp}},\n  \"order\": {\n    \"id\": \"{{stereumOrderId}}\",\n    \"status\": \"COMPLETADA\",\n    \"status_description\": \"Completada\",\n    \"side\": \"BUY\",\n    \"input_amount\": 50,\n    \"input_currency\": \"BOB\",\n    \"output_amount\": 4.04,\n    \"output_currency\": \"USDC\",\n    \"exchange_rate\": 12.376,\n    \"pair\": \"BOB_USDC\",\n    \"created_date\": {{$timestamp}}\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum"] }
+      }
+    },
+    {
+      "name": "5. Order CANCELADA (el que no llega)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification_type\": \"order\",\n  \"id\": \"{{$guid}}\",\n  \"timestamp\": {{$timestamp}},\n  \"order\": {\n    \"id\": \"{{stereumOrderId}}\",\n    \"status\": \"CANCELADA\",\n    \"status_description\": \"Cancelada\",\n    \"side\": \"BUY\",\n    \"input_amount\": 50,\n    \"input_currency\": \"BOB\",\n    \"output_amount\": 4.04,\n    \"output_currency\": \"USDC\",\n    \"exchange_rate\": 12.376,\n    \"pair\": \"BOB_USDC\",\n    \"created_date\": {{$timestamp}}\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum"] }
+      }
+    },
+    {
+      "name": "6. Transaction notification (por si Stereum usa este tipo)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"notification_type\": \"transaction\",\n  \"id\": \"{{$guid}}\",\n  \"timestamp\": {{$timestamp}},\n  \"transaction\": {\n    \"id\": \"{{stereumOrderId}}\",\n    \"status\": \"CANCELADA\"\n  }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum"] }
+      }
+    },
+    {
+      "name": "7. Webhook logs (requiere API key)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "x-api-key", "value": "{{apiKey}}" }],
+        "url": { "raw": "{{baseUrl}}/api/webhook/stereum/logs", "host": ["{{baseUrl}}"], "path": ["api", "webhook", "stereum", "logs"] }
+      }
+    }
+  ]
+}
