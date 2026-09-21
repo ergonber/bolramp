@@ -1,0 +1,20 @@
+name: keep-alive
+
+# Mantiene despierto el backend en Render (free tier) para evitar el cold start
+# de ~22s que rompe la validacion del webhook de Stereum.
+# GitHub Actions es gratis en repositorios publicos.
+on:
+  schedule:
+    # Cada 5 minutos (el minimo practico de GitHub). Puede haber pequenos delays.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render /health
+        run: |
+          echo "Ping a las $(date -u +%H:%M:%S) UTC"
+          code=$(curl -s -o /dev/null -w "%{http_code}" -m 55 https://bolramp.onrender.com/health || echo "000")
+          echo "HTTP $code"
