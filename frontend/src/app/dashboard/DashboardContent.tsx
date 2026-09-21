@@ -32,7 +32,7 @@ function EmptyState() {
       </div>
       <h3 className="text-lg font-semibold text-slate-700 mb-1">Sin trades aún</h3>
       <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
-        Cuando realices tu primera compra de USDT, aparecerá aquí tu historial.
+        Cuando realices tu primera compra de USDC, aparecerá aquí tu historial.
       </p>
       <a
         href="/comprar"
@@ -41,7 +41,7 @@ function EmptyState() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
         </svg>
-        Comprar USDT
+        Comprar USDC
       </a>
     </div>
   );
@@ -86,7 +86,7 @@ export default function DashboardContent() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Historial</h1>
-          <p className="text-slate-500 text-sm mt-1">Tus compras de USDT</p>
+          <p className="text-slate-500 text-sm mt-1">Tus compras de USDC</p>
         </div>
         <WalletStatus />
       </div>
@@ -122,8 +122,7 @@ export default function DashboardContent() {
               {trades.map((trade) => (
                 <TradeCard
                   key={trade.tradeId}
-                  tradeId={trade.tradeId}
-                  amountUSDT={trade.amountUSDT}
+                  amountUSDC={trade.amountUSDC}
                   amountBOB={trade.amountBOB}
                   rate={trade.rate}
                   status={trade.status}

@@ -17,7 +17,6 @@ export default function ComprarContent() {
   const address = mockEnabled ? mockAddress : wagmiAddress;
   const isConnectedOrMock = isConnected || mockEnabled;
   const [amount, setAmount] = useState<string>("");
-  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, mockEnabled ? mockAddress : undefined, !qrData);
   const {
     qrData,
     trade,
@@ -27,9 +26,9 @@ export default function ComprarContent() {
     generate,
     reset,
     refreshTrade,
-    isMock,
     status,
   } = useQR();
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, mockEnabled ? mockAddress : undefined, !qrData);
 
   const getCurrentStep = () => {
     if (status === "released") return 4;
@@ -124,7 +123,7 @@ export default function ComprarContent() {
                 lpSpread={0}
                 platformFee={quote.serviceFee}
                 amountBOB={quote.amountBOB}
-                amountUSDT={quote.amountUSDC}
+                amountUSDC={quote.amountUSDC}
               />
             </div>
           )}
@@ -174,16 +173,15 @@ export default function ComprarContent() {
           <QRDisplay
             qrImage={qrData.qrBase64 ? `data:image/png;base64,${qrData.qrBase64}` : undefined}
             amountBOB={qrData.amountBOB}
-            bankName={(qrData as any).bankName}
-            accountName={(qrData as any).accountName}
-            accountNumber={(qrData as any).accountNumber}
-            instructions={(qrData as any).instructions}
+            bankName={qrData.bankName}
+            accountName={qrData.accountName}
+            accountNumber={qrData.accountNumber}
+            instructions={qrData.instructions}
             timeLeft={timeLeft}
             status={status}
             tradeId={qrData.tradeId}
             dbTradeId={qrData.dbTradeId}
-            txHash={trade?.status === "released" ? (trade as any).releaseTxHash : null}
-            isMock={isMock}
+            txHash={trade?.status === "released" ? trade.releaseTxHash : null}
             onPaymentSimulated={refreshTrade}
           />
 

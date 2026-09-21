@@ -329,7 +329,7 @@ contract EscrowMaster is
 
     /// @inheritdoc IEscrowMaster
     function getTotalBalance(address lp) external view returns (uint256) {
-        return _lpBalances[lp];
+        return _lpBalances[lp] + _lpLockedBalances[lp];
     }
 
     /// @inheritdoc IEscrowMaster

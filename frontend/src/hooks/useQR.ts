@@ -12,12 +12,15 @@ interface QRData {
   dbTradeId?: number | null;
   qrBase64?: string;
   amountBOB?: string;
-  amountUSDT?: string;
+  amountUSDC?: string;
   currency?: string;
   network?: string;
   expiresAt: string;
   instructions?: string;
   status?: string;
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
 }
 
 export function useQR() {
@@ -83,9 +86,10 @@ export function useQR() {
         status: "released",
         userWallet: "",
         lpAddress: "stereum",
-        amountUSDT: parseFloat(qrData.amountUSDT || "0"),
+        amountUSDC: parseFloat(qrData.amountUSDC || "0"),
         amountBOB: parseFloat(qrData.amountBOB || "0"),
         rate: 0,
+        releaseTxHash: null,
         createdAt: new Date().toISOString(),
       });
     }

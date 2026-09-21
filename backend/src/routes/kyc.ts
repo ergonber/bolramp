@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import { z } from "zod";
 import { StereumKycService } from "../services/stereumKyc.js";
-import { apiLimiter } from "../middleware/rateLimit.js";
+import { kycLimiter, kycResetLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
+import { ethers } from "ethers";
 import pino from "pino";
 
 const logger = pino({ name: "kyc-route" });
@@ -32,7 +33,7 @@ const segipSchema = z.object({
   complementNumber: z.string().max(10).optional().nullable(),
 });
 
-router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
+router.post("/validate", kycLimiter, async (req: Request, res: Response) => {
   const parsed = segipSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -90,7 +91,7 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         validationId: 9999,
       };
     } else {
-      // Step 1: Create customer first (Stereum requires active USDT account before SEGIP)
+      // Step 1: Create customer first (Stereum requires active USDC account before SEGIP)
       const existing = await prisma.customer.findUnique({ where: { wallet: data.wallet } });
 
       if (existing?.stereumCustomerId && !existing.stereumCustomerId.startsWith("MOCK-")) {
@@ -115,7 +116,7 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
         logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
       }
 
-      // Step 2: Validate SEGIP (now that customer has an active USDT account)
+      // Step 2: Validate SEGIP (now that customer has an active USDC account)
       result = await kycService.validateSegip({
         givenNames: data.name.toUpperCase(),
         surname1: data.lastname.toUpperCase(),
@@ -169,7 +170,7 @@ router.post("/validate", apiLimiter, async (req: Request, res: Response) => {
     logger.error({ error, wallet: data.wallet }, "SEGIP validation failed");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "SEGIP validation failed",
+      error: process.env.NODE_ENV === "production" ? "SEGIP validation failed" : (error instanceof Error ? error.message : "SEGIP validation failed"),
       timestamp: new Date().toISOString(),
     });
   }
@@ -191,7 +192,7 @@ const customerSchema = z.object({
   stereumCustomerId: z.string().optional(),
 });
 
-router.post("/register", apiLimiter, async (req: Request, res: Response) => {
+router.post("/register", kycLimiter, async (req: Request, res: Response) => {
   const parsed = customerSchema.safeParse(req.body);
 
   if (!parsed.success) {
@@ -311,7 +312,7 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
     logger.error({ error, wallet: data.wallet }, "Customer registration failed");
     res.status(500).json({
       success: false,
-      error: error instanceof Error ? error.message : "Customer registration failed",
+      error: process.env.NODE_ENV === "production" ? "Customer registration failed" : (error instanceof Error ? error.message : "Customer registration failed"),
       timestamp: new Date().toISOString(),
     });
   }
@@ -319,29 +320,102 @@ router.post("/register", apiLimiter, async (req: Request, res: Response) => {
 
 // ==================== RESET KYC (for re-registration) ====================
 
-router.post("/reset", async (req: Request, res: Response) => {
-  const { wallet } = req.body;
+const resetSchema = z.object({
+  wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+  signature: z.string().regex(/^0x[a-f0-9]{130}$/),
+  message: z.string().min(1),
+});
 
-  if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
-    res.status(400).json({ success: false, error: "Invalid wallet address" });
+router.post("/reset", kycResetLimiter, async (req: Request, res: Response) => {
+  const parsed = resetSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({
+      success: false,
+      error: `Invalid request: ${parsed.error.issues.map(i => i.message).join(", ")}`,
+      timestamp: new Date().toISOString(),
+    });
     return;
   }
 
-  await prisma.customer.update({
-    where: { wallet },
-    data: {
-      kycStatus: "pending",
-      stereumCustomerId: null,
-      kycValidatedAt: null,
-    },
-  });
+  const { wallet, signature, message } = parsed.data;
 
-  res.json({ success: true, message: "KYC reset. Please re-validate." });
+  try {
+    // Verify wallet ownership: the signature must be produced by the wallet
+    // being reset, over the exact message provided.
+    let recovered: string;
+    try {
+      recovered = ethers.verifyMessage(message, signature);
+    } catch {
+      res.status(400).json({
+        success: false,
+        error: "Invalid signature format",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (recovered.toLowerCase() !== wallet.toLowerCase()) {
+      logger.warn({ wallet, recovered }, "KYC reset signature does not match wallet");
+      res.status(403).json({
+        success: false,
+        error: "Signature does not match wallet",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // The signed message must reference the wallet to prevent a valid
+    // signature over an unrelated message from being reused here.
+    if (!message.toLowerCase().includes(wallet.toLowerCase())) {
+      res.status(400).json({
+        success: false,
+        error: "Message must include the wallet address",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    logger.info({ wallet }, "KYC reset requested");
+
+    const customer = await prisma.customer.findUnique({
+      where: { wallet },
+    });
+
+    if (!customer) {
+      res.status(404).json({
+        success: false,
+        error: "Customer not found",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    await prisma.customer.update({
+      where: { wallet },
+      data: {
+        kycStatus: "pending",
+        stereumCustomerId: null,
+        kycValidatedAt: null,
+      },
+    });
+
+    logger.info({ wallet }, "KYC reset completed");
+
+    res.json({ success: true, message: "KYC reset. Please re-validate." });
+  } catch (error) {
+    logger.error({ error, wallet }, "KYC reset failed");
+    res.status(500).json({
+      success: false,
+      error: "KYC reset failed",
+      timestamp: new Date().toISOString(),
+    });
+  }
 });
 
 // ==================== CHECK KYC STATUS ====================
 
-router.get("/status/:wallet", apiLimiter, async (req: Request, res: Response) => {
+router.get("/status/:wallet", kycLimiter, async (req: Request, res: Response) => {
   const { wallet } = req.params;
 
   if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {

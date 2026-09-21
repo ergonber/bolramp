@@ -18,6 +18,8 @@ const envSchema = z.object({
   STEREUM_API_KEY: z.string().min(1),
   STEREUM_WEBHOOK_SECRET: z.string().min(1).optional(),
   STEREUM_MOCK_KYC: z.enum(["true", "false"]).default("true"),
+  // SANDBOX ONLY: accept webhooks without HMAC verification. Never in production.
+  STEREUM_WEBHOOK_INSECURE: z.enum(["true", "false"]).default("false"),
 
   LP_SPREAD_BPS: z.coerce.number().default(50),
   PLATFORM_FEE_BPS: z.coerce.number().default(50),
@@ -25,7 +27,7 @@ const envSchema = z.object({
   TRADE_EXPIRY_SECONDS: z.coerce.number().default(300),
 
   API_KEY: z.string().min(1),
-  JWT_SECRET: z.string().min(32).default("dev-jwt-secret-change-in-production"),
+  JWT_SECRET: z.string().min(32),
   CORS_ORIGINS: z.string().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["trace", "debug", "info", "warn", "error", "fatal"]).default("info"),
   SENTRY_DSN: z.string().url().optional(),

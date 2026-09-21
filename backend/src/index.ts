@@ -5,11 +5,9 @@ import pino from "pino";
 import { getEnv } from "./config/env.js";
 import { apiLimiter } from "./middleware/rateLimit.js";
 import { errorHandler } from "./middleware/errorHandler.js";
-import { authMiddleware } from "./middleware/auth.js";
 import quoteRouter from "./routes/quote.js";
 import qrRouter from "./routes/qr.js";
 import tradeRouter from "./routes/trade.js";
-import lpRouter from "./routes/lp.js";
 import offrampRouter from "./routes/offramp.js";
 import stereumWebhookRouter from "./routes/stereumWebhook.js";
 import kycRouter from "./routes/kyc.js";
@@ -24,7 +22,12 @@ async function main() {
   app.set("trust proxy", 1);
   app.use(helmet());
   app.use(cors({ origin: env.CORS_ORIGINS.split(",") }));
-  app.use(express.json());
+  app.use(express.json({
+    verify: (req, _res, buf) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (req as any).rawBody = buf;
+    },
+  }));
 
   app.get("/health", (_req, res) => {
     res.json({
@@ -40,7 +43,6 @@ async function main() {
   app.use("/api/quote", quoteRouter);
   app.use("/api/qr", qrRouter);
   app.use("/api/trade", tradeRouter);
-  app.use("/api/lp", authMiddleware, lpRouter);
   app.use("/api/offramp", offrampRouter);
   app.use("/api/kyc", kycRouter);
   app.use("/api/admin", adminRouter);

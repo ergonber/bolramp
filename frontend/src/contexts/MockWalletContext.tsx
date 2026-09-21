@@ -31,9 +31,11 @@ export function MockWalletProvider({ children }: { children: React.ReactNode }) 
   const toggle = useCallback(() => {
     setEnabled((prev) => {
       const next = !prev;
-      next
-        ? localStorage.setItem(MOCK_ADDRESS_KEY, "true")
-        : localStorage.removeItem(MOCK_ADDRESS_KEY);
+      if (next) {
+        localStorage.setItem(MOCK_ADDRESS_KEY, "true");
+      } else {
+        localStorage.removeItem(MOCK_ADDRESS_KEY);
+      }
       return next;
     });
   }, []);

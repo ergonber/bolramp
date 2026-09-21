@@ -50,7 +50,7 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
   try {
     const stereum = new StereumService();
 
-    // Request quote from Stereum (USDT — that's what Stereum delivers on Polygon)
+    // Request quote from Stereum (USDC — that's what Stereum delivers on Polygon)
     const quote = await stereum.createQuote({
       userId: customer.stereumCustomerId,
       side: "BUY",
@@ -90,7 +90,7 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
     logger.error({ error }, "Failed to generate quote from Stereum");
     res.status(500).json({
       success: false,
-      error: "Failed to generate quote from Stereum",
+      error: "Failed to generate quote",
       timestamp: new Date().toISOString(),
     });
   }

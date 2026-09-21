@@ -24,7 +24,7 @@ export interface QRResponse {
   tradeId: number | null;
   qrBase64: string;
   amountBOB: string;
-  amountUSDT: string;
+  amountUSDC: string;
   currency: string;
   network: string;
   expiresAt: string;
@@ -36,17 +36,11 @@ export interface TradeStatus {
   status: "pending" | "locked" | "released" | "expired";
   userWallet: string;
   lpAddress: string;
-  amountUSDT: number;
+  amountUSDC: number;
   amountBOB: number;
   rate: number;
+  releaseTxHash: string | null;
   createdAt: string;
-}
-
-export interface LPBalance {
-  wallet: string;
-  available: number;
-  locked: number;
-  total: number;
 }
 
 async function fetchApi<T>(
@@ -108,20 +102,12 @@ export async function getTrade(tradeId: number): Promise<TradeStatus> {
   return result.data;
 }
 
-export async function getLPBalance(wallet: string): Promise<LPBalance> {
-  const result = await fetchApi<LPBalance>(`/api/lp/balance?wallet=${wallet}`);
-  if (!result.success || !result.data) {
-    throw new Error(result.error || "Failed to get LP balance");
-  }
-  return result.data;
-}
-
 export interface TradeHistoryItem {
   tradeId: number;
   status: string;
   userWallet: string;
   lpAddress: string;
-  amountUSDT: number;
+  amountUSDC: number;
   amountBOB: number;
   rate: number;
   releaseTxHash: string | null;

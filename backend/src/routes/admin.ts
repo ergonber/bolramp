@@ -25,7 +25,7 @@ router.get("/status", async (_req: Request, res: Response) => {
       select: {
         id: true,
         userWallet: true,
-        amountUSDT: true,
+        amountUSDC: true,
         amountBOB: true,
         status: true,
         createdAt: true,

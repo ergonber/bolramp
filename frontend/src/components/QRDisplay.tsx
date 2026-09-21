@@ -65,7 +65,7 @@ export function QRDisplay({
         </div>
         <div className="text-center animate-slideUp">
           <h3 className="text-2xl font-bold text-white mb-2">
-            USDT enviado a tu wallet
+            USDC enviado a tu wallet
           </h3>
           <p className="text-slate-400 text-sm">
             Tu compra se ha completado exitosamente

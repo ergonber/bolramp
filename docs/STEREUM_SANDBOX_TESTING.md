@@ -3,7 +3,7 @@
 ## Datos de Cuenta Sandbox
 
 ```
-API Key:        ccc04e49-5306-4201-a1b6-5f7d79310319
+API Key:        $STEREUM_API_KEY
 Base URL:       https://api.stereum.tech
 Console:        https://console.stereum.tech
 ```
@@ -26,7 +26,7 @@ Console:        https://console.stereum.tech
 
 ```bash
 curl -X POST https://api.stereum.tech/api/v1/customers/create \
-  -H "x-api-key: ccc04e49-5306-4201-a1b6-5f7d79310319" \
+  -H "x-api-key: $STEREUM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "NOMBRE",
@@ -57,7 +57,7 @@ Response 201:
 
 ```bash
 curl -X POST https://api.stereum.tech/api/v1/segip/validate \
-  -H "x-api-key: ccc04e49-5306-4201-a1b6-5f7d79310319" \
+  -H "x-api-key: $STEREUM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "givenNames": "NOMBRE",
@@ -81,7 +81,7 @@ Response 200:
 
 ```bash
 curl -X POST https://api.stereum.tech/api/v1/otc/quotes \
-  -H "x-api-key: ccc04e49-5306-4201-a1b6-5f7d79310319" \
+  -H "x-api-key: $STEREUM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "externalUserId": "wallet-address-o-customer-id",
@@ -114,7 +114,7 @@ Response 201:
 
 ```bash
 curl -X POST https://api.stereum.tech/api/v1/otc/orders \
-  -H "x-api-key: ccc04e49-5306-4201-a1b6-5f7d79310319" \
+  -H "x-api-key: $STEREUM_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "idempotencyKey": "unique-order-id",
