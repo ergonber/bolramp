@@ -84,14 +84,20 @@ export interface StereumWebhookPayload {
 
 export class StereumService {
   private apiKey: string;
-  private webhookSecret: string;
+  private webhookSecrets: string[];
 
   constructor() {
     const env = getEnv();
     this.apiKey = env.STEREUM_API_KEY;
-    this.webhookSecret = env.STEREUM_WEBHOOK_SECRET || env.STEREUM_API_KEY;
-    if (!env.STEREUM_WEBHOOK_SECRET) {
-      logger.warn("STEREUM_WEBHOOK_SECRET not set — falling back to API_KEY for HMAC (INSECURE)");
+
+    // Empirically verified (2026-09-21, ST-SIS-0008 test webhook):
+    //   x-signature = HMAC-SHA256(API_KEY, rawBody)
+    // The HMAC key is the API KEY itself, not a separate secret. We keep
+    // STEREUM_WEBHOOK_SECRET as a fallback in case Stereum issues a
+    // dedicated secret in the future.
+    this.webhookSecrets = [env.STEREUM_API_KEY];
+    if (env.STEREUM_WEBHOOK_SECRET && env.STEREUM_WEBHOOK_SECRET !== env.STEREUM_API_KEY) {
+      this.webhookSecrets.push(env.STEREUM_WEBHOOK_SECRET);
     }
   }
 
@@ -171,11 +177,13 @@ export class StereumService {
   // ==================== WEBHOOK VALIDATION ====================
 
   /**
-   * Validate webhook signature against raw body.
-   * Tries two variants per manual ambiguity:
-   *   a) HMAC(secret, rawBody)
-   *   b) HMAC(secret, `${timestamp}.${rawBody}`)
-   * Returns which variant matched (or null if none).
+   * Validate webhook signature against the raw body.
+   *
+   * Verified format: HMAC-SHA256(API_KEY, rawBody). We still try the
+   * documented `timestamp.body` variant and any STEREUM_WEBHOOK_SECRET for
+   * forward compatibility. Raw bytes are used (never a re-serialized JSON).
+   *
+   * @returns the matching variant name, or null if none matched.
    */
   validateWebhookSignature(
     rawBody: Buffer,
@@ -185,29 +193,29 @@ export class StereumService {
     const sigBuf = Buffer.from(signature, "hex");
     if (sigBuf.length !== 32) return null;
 
-    // Variant a: HMAC(secret, rawBody)
-    const hmacA = crypto.createHmac("sha256", this.webhookSecret).update(rawBody).digest();
-    if (sigBuf.length === hmacA.length && crypto.timingSafeEqual(sigBuf, hmacA)) {
-      logger.info("HMAC matched variant: rawBody");
-      return "body";
+    const variants: Array<{ name: "body" | "timestamp.body"; payload: Buffer }> = [
+      { name: "body", payload: rawBody },
+    ];
+    if (timestamp) {
+      variants.push({
+        name: "timestamp.body",
+        payload: Buffer.concat([Buffer.from(`${timestamp}.`, "utf8"), rawBody]),
+      });
     }
 
-    // Variant b: HMAC(secret, `${timestamp}.${rawBody}`)
-    if (timestamp) {
-      const payload = Buffer.concat([Buffer.from(`${timestamp}.`, "utf8"), rawBody]);
-      const hmacB = crypto.createHmac("sha256", this.webhookSecret).update(payload).digest();
-      if (sigBuf.length === hmacB.length && crypto.timingSafeEqual(sigBuf, hmacB)) {
-        logger.info("HMAC matched variant: timestamp.body");
-        return "timestamp.body";
+    for (const secret of this.webhookSecrets) {
+      for (const variant of variants) {
+        const hmac = crypto.createHmac("sha256", secret).update(variant.payload).digest();
+        if (hmac.length === sigBuf.length && crypto.timingSafeEqual(sigBuf, hmac)) {
+          logger.info({ variant: variant.name }, "HMAC matched");
+          return variant.name;
+        }
       }
     }
 
     logger.warn(
-      {
-        expectedPrefixA: hmacA.toString("hex").slice(0, 16) + "...",
-        receivedPrefix: signature.slice(0, 16) + "...",
-      },
-      "HMAC mismatch — no variant matched",
+      { receivedPrefix: signature.slice(0, 16) + "..." },
+      "HMAC mismatch — no variant/key matched",
     );
     return null;
   }

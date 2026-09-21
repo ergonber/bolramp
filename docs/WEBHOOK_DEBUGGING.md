@@ -80,20 +80,26 @@ Header: x-api-key: {{apiKey}}
 Verás por cada webhook: `notificationType`, `payload`, `signature` (truncada),
 `processed` y `error` (p. ej. `HMAC mismatch`, `Timestamp expired`).
 
-## Firma HMAC (según el manual ST-SIS-0008)
+## Firma HMAC — FORMATO CONFIRMADO
+
+Comprobado empíricamente el 2026-09-21 capturando el `test` que envía Stereum:
 
 ```
-x-signature = HMAC-SHA256(secret, payload)
+x-signature = HMAC-SHA256(API_KEY, rawBody)
 ```
 
-El manual es ambiguo respecto al payload. El backend acepta **dos variantes** y
-registra cuál coincidió:
+- La clave del HMAC es el **API KEY** (el mismo valor de `x-api-key`), **no** un
+  `SECRET_KEY` separado.
+- Se firma el **body crudo en bytes**, sin el timestamp.
+- El backend, por compatibilidad, sigue aceptando también la variante
+  `HMAC(secret, ${timestamp}.${rawBody})` y respeta `STEREUM_WEBHOOK_SECRET` si
+  existe.
 
-1. `HMAC(secret, rawBody)`
-2. `HMAC(secret, ${timestamp}.${rawBody})`  ← la que usa el script de prueba
-
-Importante: se firma el **body crudo en bytes**, no un `JSON.stringify`
-re-serializado (eso fue un bug que se corrigió).
+### La consola valida el Content-Type de la respuesta
+La validación de la URL **falla si el endpoint responde `text/html`**. Debe
+responder `200` con `Content-Type: application/json`. El backend ya lo hace
+(`res.json`), pero si Render está dormido el timeout también hace fallar la
+validación. Mantén el pinger externo activo.
 
 ## Prueba local rápida
 

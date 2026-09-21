@@ -25,9 +25,10 @@ const WEBHOOK_URL = `${API_BASE}/api/webhook/stereum`;
 const notificationType = (process.argv[2] as string) || "test";
 
 function getSecret(): string {
-  const secret = process.env.STEREUM_WEBHOOK_SECRET || process.env.STEREUM_API_KEY;
+  // Confirmed: Stereum signs with the API KEY as the HMAC key.
+  const secret = process.env.STEREUM_API_KEY || process.env.STEREUM_WEBHOOK_SECRET;
   if (!secret) {
-    throw new Error("Set STEREUM_WEBHOOK_SECRET or STEREUM_API_KEY in .env");
+    throw new Error("Set STEREUM_API_KEY (or STEREUM_WEBHOOK_SECRET) in .env");
   }
   return secret;
 }
@@ -105,8 +106,8 @@ async function main() {
   console.log("HMAC (timestamp.body):  ", hmacTimestampBody.slice(0, 32) + "...");
   console.log();
 
-  // Send with variant B (timestamp.body) — matches the original Stereum implementation
-  const signature = hmacTimestampBody;
+  // Confirmed format: HMAC(API_KEY, rawBody) — variant A
+  const signature = hmacBody;
 
   console.log(`Sending with x-signature: ${signature.slice(0, 32)}...`);
   console.log(`Sending with x-timestamp: ${timestamp}`);
