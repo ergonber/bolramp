@@ -50,76 +50,93 @@ router.post("/", async (req: Request, res: Response) => {
   }
 
   // === 2) HMAC VALIDATION (required for order/transaction notifications) ===
-  if (!rawBody) {
-    logger.error("No rawBody captured — cannot validate HMAC");
+  // SANDBOX ONLY: STEREUM_WEBHOOK_INSECURE=true accepts notifications without
+  // verifying the signature. NEVER enable in production.
+  const insecure = process.env.STEREUM_WEBHOOK_INSECURE === "true";
+
+  if (insecure) {
+    logger.warn("STEREUM_WEBHOOK_INSECURE=true — skipping signature validation (SANDBOX ONLY)");
     await logWebhook(prisma, {
       source: "stereum",
       payload: JSON.stringify(req.body),
       signature: xSignature ?? null,
-      processed: false,
+      processed: true,
       notificationType: notificationType ?? "unknown",
       stereumOrderId: req.body?.order?.id ?? null,
-      error: "No rawBody captured",
+      error: "insecure-mode: signature not verified",
     });
-    res.status(400).json({ success: false, error: "Missing raw body" });
-    return;
+  } else {
+    if (!rawBody) {
+      logger.error("No rawBody captured — cannot validate HMAC");
+      await logWebhook(prisma, {
+        source: "stereum",
+        payload: JSON.stringify(req.body),
+        signature: xSignature ?? null,
+        processed: false,
+        notificationType: notificationType ?? "unknown",
+        stereumOrderId: req.body?.order?.id ?? null,
+        error: "No rawBody captured",
+      });
+      res.status(400).json({ success: false, error: "Missing raw body" });
+      return;
+    }
+
+    if (!xSignature || !xTimestamp) {
+      logger.warn("Missing HMAC headers — rejecting");
+      await logWebhook(prisma, {
+        source: "stereum",
+        payload: JSON.stringify(req.body),
+        signature: null,
+        processed: false,
+        notificationType: notificationType ?? "unknown",
+        stereumOrderId: req.body?.order?.id ?? null,
+        error: "Missing x-signature or x-timestamp header",
+      });
+      res.status(403).json({ success: false, error: "Missing signature headers" });
+      return;
+    }
+
+    const stereum = new StereumService();
+
+    // Validate timestamp freshness (max 2 minutes)
+    if (!stereum.isWebhookTimestampValid(xTimestamp, 120)) {
+      logger.warn({ xTimestamp }, "Webhook timestamp expired (>2 min)");
+      await logWebhook(prisma, {
+        source: "stereum",
+        payload: JSON.stringify(req.body),
+        signature: xSignature,
+        processed: false,
+        notificationType: notificationType ?? "unknown",
+        stereumOrderId: req.body?.order?.id ?? null,
+        error: `Timestamp expired: ${xTimestamp}`,
+      });
+      res.status(403).json({ success: false, error: "Timestamp expired" });
+      return;
+    }
+
+    // Validate HMAC (tries API key / secret, body / timestamp.body)
+    const matchVariant = stereum.validateWebhookSignature(rawBody, xSignature, xTimestamp);
+
+    if (!matchVariant) {
+      logger.warn(
+        { receivedSig: xSignature.slice(0, 16) + "...", xTimestamp },
+        "HMAC validation FAILED — REJECTED",
+      );
+      await logWebhook(prisma, {
+        source: "stereum",
+        payload: JSON.stringify(req.body),
+        signature: xSignature,
+        processed: false,
+        notificationType: notificationType ?? "unknown",
+        stereumOrderId: req.body?.order?.id ?? null,
+        error: "HMAC mismatch",
+      });
+      res.status(403).json({ success: false, error: "Invalid signature" });
+      return;
+    }
+
+    logger.info({ variant: matchVariant }, "HMAC validation OK");
   }
-
-  if (!xSignature || !xTimestamp) {
-    logger.warn("Missing HMAC headers — rejecting");
-    await logWebhook(prisma, {
-      source: "stereum",
-      payload: JSON.stringify(req.body),
-      signature: null,
-      processed: false,
-      notificationType: notificationType ?? "unknown",
-      stereumOrderId: req.body?.order?.id ?? null,
-      error: "Missing x-signature or x-timestamp header",
-    });
-    res.status(403).json({ success: false, error: "Missing signature headers" });
-    return;
-  }
-
-  const stereum = new StereumService();
-
-  // Validate timestamp freshness (max 2 minutes)
-  if (!stereum.isWebhookTimestampValid(xTimestamp, 120)) {
-    logger.warn({ xTimestamp }, "Webhook timestamp expired (>2 min)");
-    await logWebhook(prisma, {
-      source: "stereum",
-      payload: JSON.stringify(req.body),
-      signature: xSignature,
-      processed: false,
-      notificationType: notificationType ?? "unknown",
-      stereumOrderId: req.body?.order?.id ?? null,
-      error: `Timestamp expired: ${xTimestamp}`,
-    });
-    res.status(403).json({ success: false, error: "Timestamp expired" });
-    return;
-  }
-
-  // Validate HMAC (try both variants)
-  const matchVariant = stereum.validateWebhookSignature(rawBody, xSignature, xTimestamp);
-
-  if (!matchVariant) {
-    logger.warn(
-      { receivedSig: xSignature.slice(0, 16) + "...", xTimestamp },
-      "HMAC validation FAILED — REJECTED",
-    );
-    await logWebhook(prisma, {
-      source: "stereum",
-      payload: JSON.stringify(req.body),
-      signature: xSignature,
-      processed: false,
-      notificationType: notificationType ?? "unknown",
-      stereumOrderId: req.body?.order?.id ?? null,
-      error: "HMAC mismatch",
-    });
-    res.status(403).json({ success: false, error: "Invalid signature" });
-    return;
-  }
-
-  logger.info({ variant: matchVariant }, "HMAC validation OK");
 
   // === 3) HANDLE NOTIFICATIONS ===
   try {

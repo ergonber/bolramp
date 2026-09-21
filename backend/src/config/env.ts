@@ -18,6 +18,8 @@ const envSchema = z.object({
   STEREUM_API_KEY: z.string().min(1),
   STEREUM_WEBHOOK_SECRET: z.string().min(1).optional(),
   STEREUM_MOCK_KYC: z.enum(["true", "false"]).default("true"),
+  // SANDBOX ONLY: accept webhooks without HMAC verification. Never in production.
+  STEREUM_WEBHOOK_INSECURE: z.enum(["true", "false"]).default("false"),
 
   LP_SPREAD_BPS: z.coerce.number().default(50),
   PLATFORM_FEE_BPS: z.coerce.number().default(50),
