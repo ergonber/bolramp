@@ -33,6 +33,16 @@ router.get("/status", async (_req: Request, res: Response) => {
       },
     });
 
+    // Diagnostic: confirm which database the deployed app is connected to.
+    const [customerCount] = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
+      `select count(*)::int as n from "Customer"`,
+    );
+    const [dbInfo] = await prisma.$queryRawUnsafe<
+      Array<{ db: string; host: string; schema: string }>
+    >(
+      `select current_database() as db, coalesce(inet_server_addr()::text, 'n/a') as host, current_schema() as schema`,
+    );
+
     res.json({
       success: true,
       data: {
@@ -40,6 +50,8 @@ router.get("/status", async (_req: Request, res: Response) => {
         releasedTrades,
         pendingTrades,
         expiredTrades,
+        customerCount: customerCount?.n ?? null,
+        dbInfo,
         recentTrades,
       },
       timestamp: new Date().toISOString(),
