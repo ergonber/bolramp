@@ -3,6 +3,7 @@ import { z } from "zod";
 import { StereumKycService } from "../services/stereumKyc.js";
 import { kycLimiter, kycResetLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
+import { normalizeWallet } from "../lib/wallet.js";
 import { ethers } from "ethers";
 import pino from "pino";
 
@@ -46,6 +47,7 @@ router.post("/validate", kycLimiter, async (req: Request, res: Response) => {
   }
 
   const data = parsed.data;
+  data.wallet = normalizeWallet(data.wallet);
 
   try {
     const kycService = new StereumKycService();
@@ -205,6 +207,7 @@ router.post("/register", kycLimiter, async (req: Request, res: Response) => {
   }
 
   const data = parsed.data;
+  data.wallet = normalizeWallet(data.wallet);
 
   try {
     const existing = await prisma.customer.findUnique({
@@ -338,7 +341,8 @@ router.post("/reset", kycResetLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  const { wallet, signature, message } = parsed.data;
+  const { signature, message } = parsed.data;
+  const wallet = normalizeWallet(parsed.data.wallet);
 
   try {
     // Verify wallet ownership: the signature must be produced by the wallet
@@ -416,7 +420,7 @@ router.post("/reset", kycResetLimiter, async (req: Request, res: Response) => {
 // ==================== CHECK KYC STATUS ====================
 
 router.get("/status/:wallet", kycLimiter, async (req: Request, res: Response) => {
-  const { wallet } = req.params;
+  const wallet = normalizeWallet(req.params.wallet);
 
   if (!/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
     res.status(400).json({

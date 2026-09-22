@@ -3,6 +3,7 @@ import { z } from "zod";
 import { StereumService } from "../services/stereum.js";
 import { qrLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
+import { normalizeWallet } from "../lib/wallet.js";
 import crypto from "crypto";
 import { ethers } from "ethers";
 import pino from "pino";
@@ -32,7 +33,8 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  const { userWallet, quoteId } = parsed.data;
+  const { quoteId } = parsed.data;
+  const userWallet = normalizeWallet(parsed.data.userWallet);
 
   try {
     const stereum = new StereumService();

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import { AppError } from "../middleware/errorHandler.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { normalizeWallet } from "../lib/wallet.js";
 import pino from "pino";
 
 const logger = pino({ name: "trade-route" });
@@ -26,7 +27,8 @@ router.get("/history", async (req: Request, res: Response) => {
     throw new AppError("Invalid parameters", 400);
   }
 
-  const { wallet, page, limit } = parsed.data;
+  const { page, limit } = parsed.data;
+  const wallet = normalizeWallet(parsed.data.wallet);
   const skip = (page - 1) * limit;
 
   try {

@@ -4,6 +4,7 @@ import { StereumService } from "../services/stereum.js";
 import { quoteLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
 import { getEnv } from "../config/env.js";
+import { normalizeWallet } from "../lib/wallet.js";
 import pino from "pino";
 
 const logger = pino({ name: "quote-route" });
@@ -29,7 +30,8 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  const { amount, wallet } = parsed.data;
+  const { amount } = parsed.data;
+  const wallet = normalizeWallet(parsed.data.wallet);
 
   // === KYC CHECK ===
   const customer = await prisma.customer.findUnique({
