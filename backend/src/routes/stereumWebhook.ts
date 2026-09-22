@@ -98,9 +98,23 @@ router.post("/", async (req: Request, res: Response) => {
 
     const stereum = new StereumService();
 
-    // Validate timestamp freshness (max 2 minutes)
-    if (!stereum.isWebhookTimestampValid(xTimestamp, 120)) {
-      logger.warn({ xTimestamp }, "Webhook timestamp expired (>2 min)");
+    // Freshness check.
+    // Stereum's `x-timestamp` header is consistently 4 hours behind real UTC
+    // (it uses the local Bolivia clock). The notification body carries its own
+    // `timestamp` in ms (and is covered by the HMAC), so prefer it. Fall back
+    // to the header with a tolerant window when the body timestamp is absent.
+    const bodyTs =
+      typeof req.body?.timestamp === "number"
+        ? Math.floor(req.body.timestamp / 1000)
+        : null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fresh =
+      bodyTs !== null
+        ? Math.abs(nowSec - bodyTs) <= 300
+        : stereum.isWebhookTimestampValid(xTimestamp, 6 * 3600);
+
+    if (!fresh) {
+      logger.warn({ xTimestamp, bodyTs, nowSec }, "Webhook timestamp too old");
       await logWebhook(prisma, {
         source: "stereum",
         payload: JSON.stringify(req.body),
@@ -108,7 +122,7 @@ router.post("/", async (req: Request, res: Response) => {
         processed: false,
         notificationType: notificationType ?? "unknown",
         stereumOrderId: req.body?.order?.id ?? null,
-        error: `Timestamp expired: ${xTimestamp}`,
+        error: `Timestamp expired: header=${xTimestamp} body=${bodyTs}`,
       });
       res.status(403).json({ success: false, error: "Timestamp expired" });
       return;
