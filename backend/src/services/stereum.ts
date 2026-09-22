@@ -84,20 +84,24 @@ export interface StereumWebhookPayload {
 
 export class StereumService {
   private apiKey: string;
-  private webhookSecrets: string[];
+  private webhookSecrets: Array<string | Buffer>;
 
   constructor() {
     const env = getEnv();
     this.apiKey = env.STEREUM_API_KEY;
 
-    // Empirically verified (2026-09-21, ST-SIS-0008 test webhook):
-    //   x-signature = HMAC-SHA256(API_KEY, rawBody)
-    // The HMAC key is the API KEY itself, not a separate secret. We keep
-    // STEREUM_WEBHOOK_SECRET as a fallback in case Stereum issues a
-    // dedicated secret in the future.
+    // Empirically verified (ST-SIS-0008 test webhook): URL validation signs
+    // with HMAC-SHA256(API_KEY, rawBody). Real order notifications use a
+    // different key (the Secret), so we try every plausible candidate:
+    // the API key, the secret as text, and the secret decoded from hex.
     this.webhookSecrets = [env.STEREUM_API_KEY];
-    if (env.STEREUM_WEBHOOK_SECRET && env.STEREUM_WEBHOOK_SECRET !== env.STEREUM_API_KEY) {
-      this.webhookSecrets.push(env.STEREUM_WEBHOOK_SECRET);
+
+    const secret = env.STEREUM_WEBHOOK_SECRET;
+    if (secret && secret !== env.STEREUM_API_KEY) {
+      this.webhookSecrets.push(secret);
+      if (/^[0-9a-fA-F]+$/.test(secret) && secret.length % 2 === 0) {
+        this.webhookSecrets.push(Buffer.from(secret, "hex"));
+      }
     }
   }
 

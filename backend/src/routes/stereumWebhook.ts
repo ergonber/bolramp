@@ -38,7 +38,7 @@ router.post("/", async (req: Request, res: Response) => {
 
     await logWebhook(prisma, {
       source: "stereum",
-      payload: JSON.stringify(req.body),
+      payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
       signature: xSignature ?? null,
       processed: true,
       notificationType: "test",
@@ -58,7 +58,7 @@ router.post("/", async (req: Request, res: Response) => {
     logger.warn("STEREUM_WEBHOOK_INSECURE=true — skipping signature validation (SANDBOX ONLY)");
     await logWebhook(prisma, {
       source: "stereum",
-      payload: JSON.stringify(req.body),
+      payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
       signature: xSignature ?? null,
       processed: true,
       notificationType: notificationType ?? "unknown",
@@ -70,7 +70,7 @@ router.post("/", async (req: Request, res: Response) => {
       logger.error("No rawBody captured — cannot validate HMAC");
       await logWebhook(prisma, {
         source: "stereum",
-        payload: JSON.stringify(req.body),
+        payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
         signature: xSignature ?? null,
         processed: false,
         notificationType: notificationType ?? "unknown",
@@ -85,7 +85,7 @@ router.post("/", async (req: Request, res: Response) => {
       logger.warn("Missing HMAC headers — rejecting");
       await logWebhook(prisma, {
         source: "stereum",
-        payload: JSON.stringify(req.body),
+        payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
         signature: null,
         processed: false,
         notificationType: notificationType ?? "unknown",
@@ -117,7 +117,7 @@ router.post("/", async (req: Request, res: Response) => {
       logger.warn({ xTimestamp, bodyTs, nowSec }, "Webhook timestamp too old");
       await logWebhook(prisma, {
         source: "stereum",
-        payload: JSON.stringify(req.body),
+        payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
         signature: xSignature,
         processed: false,
         notificationType: notificationType ?? "unknown",
@@ -138,7 +138,7 @@ router.post("/", async (req: Request, res: Response) => {
       );
       await logWebhook(prisma, {
         source: "stereum",
-        payload: JSON.stringify(req.body),
+        payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
         signature: xSignature,
         processed: false,
         notificationType: notificationType ?? "unknown",
