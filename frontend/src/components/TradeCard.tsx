@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusBadge } from "./StatusBadge";
+import { txExplorerUrl } from "@/lib/explorer";
 
 interface TradeCardProps {
   amountUSDC: number;
@@ -19,9 +20,7 @@ export function TradeCard({
   releaseTxHash,
   createdAt,
 }: TradeCardProps) {
-  const polygonscanUrl = releaseTxHash
-    ? `https://amoy.polygonscan.com/tx/${releaseTxHash}`
-    : null;
+  const polygonscanUrl = releaseTxHash ? txExplorerUrl(releaseTxHash) : null;
 
   const formattedDate = new Date(createdAt).toLocaleDateString("es-BO", {
     day: "numeric",

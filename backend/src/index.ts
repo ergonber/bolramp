@@ -12,6 +12,7 @@ import offrampRouter from "./routes/offramp.js";
 import stereumWebhookRouter from "./routes/stereumWebhook.js";
 import kycRouter from "./routes/kyc.js";
 import adminRouter from "./routes/admin.js";
+import { startExpireTradesJob } from "./jobs/expireTrades.js";
 
 const logger = pino({ name: "onramp-backend" });
 
@@ -51,6 +52,9 @@ async function main() {
 
   app.listen(env.PORT, () => {
     logger.info(`Onramp backend running on port ${env.PORT}`);
+
+    // Safety net for trades stuck in `pending`
+    startExpireTradesJob();
 
     // Keep-alive: ping self every 10 minutes to prevent Render free tier sleep
     if (env.NODE_ENV === "production") {
