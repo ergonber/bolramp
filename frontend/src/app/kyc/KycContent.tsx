@@ -120,8 +120,16 @@ export default function KycContent() {
       }
 
       if (validateData.data.status !== "VERIFIED") {
+        const fields: Record<string, string> = validateData.data.fields || {};
+        const wrong = Object.entries(fields)
+          .filter(([, v]) => v !== "CORRECT")
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(", ");
         throw new Error(
-          `Validacion SEGIP: ${validateData.data.status}. Verifica que tus datos sean correctos.`
+          `Validacion SEGIP: ${validateData.data.status}.` +
+            (wrong
+              ? ` Campos con problema -> ${wrong}`
+              : " Verifica que tus datos sean correctos.")
         );
       }
 
