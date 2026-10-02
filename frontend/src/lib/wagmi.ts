@@ -1,6 +1,7 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { polygon, polygonAmoy, anvil } from "wagmi/chains";
-import { http } from "wagmi";
+import { http, createConfig } from "wagmi";
+import { injected } from "wagmi/connectors";
 
 const chainId = process.env.NEXT_PUBLIC_CHAIN_ID;
 
@@ -20,12 +21,23 @@ if (chainId === "80002") {
   );
 }
 
-export const config = getDefaultConfig({
-  appName: "Onramp BOB→USDC",
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
-  chains: [chain],
-  transports: customTransports,
-});
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
+const hasValidProjectId = /^[0-9a-fA-F]{32}$/.test(projectId);
+
+// If there is no valid WalletConnect project ID, fall back to injected wallets
+// only. This keeps the app (and its production build) working without one.
+export const config = hasValidProjectId
+  ? getDefaultConfig({
+      appName: "Bolramp",
+      projectId,
+      chains: [chain],
+      transports: customTransports,
+    })
+  : createConfig({
+      chains: [chain],
+      connectors: [injected()],
+      transports: customTransports,
+    });
 
 declare module "wagmi" {
   interface Register {
