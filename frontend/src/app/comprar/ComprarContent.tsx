@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAccount } from "wagmi";
-import { useMockWallet } from "@/contexts/MockWalletContext";
 import { WalletStatus } from "@/components/WalletStatus";
 import { QRDisplay } from "@/components/QRDisplay";
 import { RateDisplay } from "@/components/RateDisplay";
@@ -12,10 +11,8 @@ const STEPS = ["Conectar", "Cotizar", "Pagar", "Recibir"];
 const QUICK_AMOUNTS = [50, 100, 200, 500];
 
 export default function ComprarContent() {
-  const { isConnected, address: wagmiAddress } = useAccount();
-  const { address: mockAddress, enabled: mockEnabled } = useMockWallet();
-  const address = mockEnabled ? mockAddress : wagmiAddress;
-  const isConnectedOrMock = isConnected || mockEnabled;
+  const { isConnected, address } = useAccount();
+  const isConnectedOrMock = isConnected;
   const [amount, setAmount] = useState<string>("");
   const {
     qrData,
@@ -28,7 +25,7 @@ export default function ComprarContent() {
     refreshTrade,
     status,
   } = useQR();
-  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, mockEnabled ? mockAddress : undefined, !qrData);
+  const { quote, loading: quoteLoading, error: quoteError } = useQuote(amount ? parseFloat(amount) : null, undefined, !qrData);
 
   const getCurrentStep = () => {
     if (status === "released") return 4;
@@ -55,12 +52,6 @@ export default function ComprarContent() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 sm:py-12">
       <div className="flex justify-end mb-6 animate-fadeIn gap-2">
-        {mockEnabled && (
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-xs font-medium text-emerald-400">Test: 0xB141...8E9A6</span>
-          </div>
-        )}
         <WalletStatus />
       </div>
 

@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
-import { TestModeToggle } from "@/components/TestModeToggle";
 
 export const metadata: Metadata = {
   title: "Bolramp — Compra USDC con Bolivianos",
@@ -38,7 +37,7 @@ export default function RootLayout({
                 <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-shadow duration-300">
                   <span className="text-white font-bold text-sm">O</span>
                 </div>
-                <span className="text-xl font-bold text-gradient">Onramp</span>
+                <span className="text-xl font-bold text-gradient">Bolramp</span>
               </a>
               <nav className="flex gap-1 items-center">
                 <a
@@ -65,14 +64,13 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <footer className="border-t border-white/5 py-6 mt-auto">
             <div className="max-w-6xl mx-auto px-4 text-center space-y-2">
-              <p className="text-xs text-slate-500">Onramp no custodia fondos. Tasa P2P de Stereum Pay. Powered by Polygon.</p>
+              <p className="text-xs text-slate-500">Bolramp no custodia fondos. Tasa P2P de Stereum Pay. Powered by Polygon.</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                <p className="text-xs text-slate-600">Testnet Amoy &bull; Datos con fines de demostracion</p>
+                <p className="text-xs text-slate-600">Polygon Mainnet</p>
               </div>
             </div>
           </footer>
-          <TestModeToggle />
         </Providers>
       </body>
     </html>
