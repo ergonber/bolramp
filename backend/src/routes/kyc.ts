@@ -118,10 +118,18 @@ router.post("/validate", kycLimiter, async (req: Request, res: Response) => {
         logger.info({ wallet: data.wallet, customerId }, "Customer created in Stereum");
       }
 
-      // Step 2: Validate SEGIP (now that customer has an active USDC account)
+      // Step 2: Validate SEGIP (now that customer has an active USDC account).
+      // SEGIP expects the first and second surname separately, but the form
+      // captures them in a single field. Split on whitespace.
+      const surnameParts = data.lastname.trim().toUpperCase().split(/\s+/);
+      const surname1 = surnameParts[0] ?? "";
+      const surname2 =
+        surnameParts.length > 1 ? surnameParts.slice(1).join(" ") : null;
+
       result = await kycService.validateSegip({
         givenNames: data.name.toUpperCase(),
-        surname1: data.lastname.toUpperCase(),
+        surname1,
+        surname2,
         birthdate: data.birthdate,
         dniType: data.documentType,
         documentNumber: data.documentNumber,
