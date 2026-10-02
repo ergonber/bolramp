@@ -1,4 +1,3 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { polygon, polygonAmoy, anvil } from "wagmi/chains";
 import { http, createConfig } from "wagmi";
 import { injected } from "wagmi/connectors";
@@ -21,23 +20,18 @@ if (chainId === "80002") {
   );
 }
 
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "";
-const hasValidProjectId = /^[0-9a-fA-F]{32}$/.test(projectId);
-
-// If there is no valid WalletConnect project ID, fall back to injected wallets
-// only. This keeps the app (and its production build) working without one.
-export const config = hasValidProjectId
-  ? getDefaultConfig({
-      appName: "Bolramp",
-      projectId,
-      chains: [chain],
-      transports: customTransports,
-    })
-  : createConfig({
-      chains: [chain],
-      connectors: [injected()],
-      transports: customTransports,
-    });
+// NOTE: RainbowKit's `getDefaultConfig`/`connectorsForWallets` are not
+// SSR-safe here (crash with "Cannot read properties of undefined (reading
+// 'uid')", and WalletConnect blows up the build). We build the wagmi config
+// explicitly with injected wallets; RainbowKitProvider still renders the
+// connect modal for MetaMask/Rabby/injected wallets. Providers mount
+// client-only (components/Providers.tsx).
+export const config = createConfig({
+  chains: [chain],
+  connectors: [injected()],
+  transports: customTransports,
+  ssr: true,
+});
 
 declare module "wagmi" {
   interface Register {

@@ -15,6 +15,10 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+// RainbowKit's connectors are not SSR-safe and break static prerendering
+// ("Cannot read properties of undefined (reading 'uid')"). Render on demand.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
