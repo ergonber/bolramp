@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "Bolramp — Compra USDC con Bolivianos",
-  description: "Compra USDC con Bolivianos de forma segura y rapida en Polygon",
+  title: "Bolramp — Compra USDT con Bolivianos",
+  description: "Compra USDT con Bolivianos de forma segura y rapida en Polygon",
 };
 
 export const viewport: Viewport = {

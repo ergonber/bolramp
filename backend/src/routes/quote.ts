@@ -52,13 +52,13 @@ router.get("/", quoteLimiter, async (req: Request, res: Response) => {
   try {
     const stereum = new StereumService();
 
-    // Request quote from Stereum (USDC — that's what Stereum delivers on Polygon)
+    // Stereum MainNet provides USDT inventory (USDC returns INVENTORY_NOT_FOUND)
     const quote = await stereum.createQuote({
       userId: customer.stereumCustomerId,
       side: "BUY",
       inputAmount: amount,
       inputCurrency: "BOB",
-      outputCurrency: "USDC",
+      outputCurrency: "USDT",
     });
 
     // Onramp fee: reduce the user's output by ONRAMP_FEE_BPS

@@ -194,12 +194,12 @@ export default function KycContent() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Identidad Verificada</h1>
-          <p className="text-slate-500 mb-6">Tu cuenta esta verificada. Puedes proceder a comprar USDC.</p>
+          <p className="text-slate-500 mb-6">Tu cuenta esta verificada. Puedes proceder a comprar USDT.</p>
           <a
             href="/comprar"
             className="inline-block px-8 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
           >
-            Comprar USDC
+            Comprar USDT
           </a>
         </div>
       </div>
@@ -227,7 +227,7 @@ export default function KycContent() {
 
       {success && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl mb-6">
-          <p className="text-emerald-700 text-sm">KYC completado exitosamente. Ya puedes comprar USDC.</p>
+          <p className="text-emerald-700 text-sm">KYC completado exitosamente. Ya puedes comprar USDT.</p>
         </div>
       )}
 

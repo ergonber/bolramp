@@ -36,7 +36,7 @@ export function TradeCard({
         <div>
           <div className="flex items-baseline gap-1.5">
             <span className="font-bold text-lg text-slate-900">{amountUSDC.toFixed(2)}</span>
-            <span className="text-sm font-medium text-slate-500">USDC</span>
+            <span className="text-sm font-medium text-slate-500">USDT</span>
           </div>
           <p className="text-sm text-slate-500">{amountBOB.toFixed(2)} BOB</p>
         </div>
@@ -44,7 +44,7 @@ export function TradeCard({
       </div>
 
       <div className="mt-3 flex justify-between items-center text-xs text-slate-400">
-        <span>Tasa: {rate.toFixed(2)} BOB/USDC</span>
+        <span>Tasa: {rate.toFixed(2)} BOB/USDT</span>
         <span>{formattedDate}</span>
       </div>
 
