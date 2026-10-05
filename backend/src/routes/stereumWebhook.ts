@@ -249,16 +249,19 @@ async function handleOrderNotification(
     return;
   }
 
-  // Idempotency: skip if already finalised
-  if (dbTrade.status === "released" || dbTrade.status === "expired") {
-    logger.info(
-      { orderId: order.id, dbTradeId: dbTrade.id, currentStatus: dbTrade.status },
-      "Trade already finalised — skipping",
-    );
-    return;
-  }
+  // Stereum reports the paid state as "PAGADO"; older docs used "COMPLETADA".
+  const PAID_STATUSES = ["COMPLETADA", "PAGADO", "PAGADA", "PAID", "COMPLETED", "PAGO"];
+  const CANCEL_STATUSES = ["CANCELADA", "CANCELED", "EXPIRADA", "EXPIRED"];
+  const status = (order.status || "").toUpperCase();
 
-  if (order.status === "COMPLETADA" && order.side === "BUY") {
+  if (PAID_STATUSES.includes(status) && order.side === "BUY") {
+    // A paid order is authoritative: release even if a local expiry already
+    // marked the trade as expired.
+    if (dbTrade.status === "released") {
+      logger.info({ orderId: order.id }, "Trade already released — skipping");
+      return;
+    }
+
     await prisma.trade.update({
       where: { id: dbTrade.id },
       data: {
@@ -273,18 +276,26 @@ async function handleOrderNotification(
         orderId: order.id,
         dbTradeId: dbTrade.id,
         userWallet: dbTrade.userWallet,
-        amountUSDC: order.output_amount,
+        amountUSDT: order.output_amount,
       },
       "Payment completed — trade released",
     );
-  } else if (order.status === "CANCELADA") {
+  } else if (CANCEL_STATUSES.includes(status)) {
+    if (dbTrade.status === "released") {
+      logger.warn(
+        { orderId: order.id, dbTradeId: dbTrade.id },
+        "Ignoring cancel for already released trade",
+      );
+      return;
+    }
+
     await prisma.trade.update({
       where: { id: dbTrade.id },
       data: { status: "expired", expiredAt: new Date() },
     });
 
     logger.info({ orderId: order.id, dbTradeId: dbTrade.id }, "Order cancelled — trade expired");
-  } else if (order.status === "ERROR") {
+  } else if (status === "ERROR") {
     logger.error(
       { orderId: order.id, dbTradeId: dbTrade.id, status_description: order.status_description },
       "Order error — trade unchanged",
