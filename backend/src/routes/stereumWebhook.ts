@@ -150,6 +150,16 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     logger.info({ variant: matchVariant }, "HMAC validation OK");
+
+    // Audit: record valid (signature-verified) webhooks too.
+    await logWebhook(prisma, {
+      source: "stereum",
+      payload: req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body),
+      signature: xSignature,
+      processed: true,
+      notificationType: notificationType ?? "unknown",
+      stereumOrderId: req.body?.order?.id ?? null,
+    });
   }
 
   // === 3) HANDLE NOTIFICATIONS ===
