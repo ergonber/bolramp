@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { simulatePayment } from "@/lib/api";
 import { txExplorerUrl } from "@/lib/explorer";
 
 interface QRDisplayProps {
@@ -34,7 +33,6 @@ export function QRDisplay({
   onPaymentSimulated,
 }: QRDisplayProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [simulating, setSimulating] = useState(false);
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const totalSeconds = 300;
@@ -253,36 +251,6 @@ export function QRDisplay({
               </p>
             </div>
 
-            <button
-              onClick={async () => {
-                console.log("Simulate clicked — dbTradeId:", dbTradeId, "tradeId:", tradeId);
-                const id = dbTradeId ?? tradeId;
-                if (!id) {
-                  console.error("No trade ID available for simulation");
-                  return;
-                }
-                setSimulating(true);
-                try {
-                  await simulatePayment(id);
-                  onPaymentSimulated?.();
-                } catch (err) {
-                  console.error("Failed to simulate:", err);
-                } finally {
-                  setSimulating(false);
-                }
-              }}
-              disabled={simulating}
-              className="w-full py-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-sm font-semibold hover:bg-emerald-500/20 transition-all duration-200 disabled:opacity-50"
-            >
-              {simulating ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                  Simulando pago...
-                </span>
-              ) : (
-                "Simular Pago Recibido (Test)"
-              )}
-            </button>
           </div>
         )}
 
