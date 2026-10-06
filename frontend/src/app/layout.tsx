@@ -64,7 +64,12 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <footer className="border-t border-white/5 py-6 mt-auto">
             <div className="max-w-6xl mx-auto px-4 text-center space-y-2">
-              <p className="text-xs text-slate-500">Bolramp no custodia fondos. Tasa P2P de Stereum Pay. Powered by Polygon.</p>
+              <p className="text-xs text-slate-500">
+                Bolramp no custodia fondos. Hecho por ethbol - Ernesto Gonzales - Cochabamba-Bolivia.
+              </p>
+              <p className="text-xs text-slate-600">
+                Todos los derechos reservados &copy; {new Date().getFullYear()}
+              </p>
               <div className="flex items-center justify-center gap-2">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
                 <p className="text-xs text-slate-600">Polygon Mainnet</p>
