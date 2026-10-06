@@ -34,8 +34,8 @@ export interface QRResponse {
 export interface TradeStatus {
   tradeId: number;
   status: "pending" | "locked" | "released" | "expired";
-  userWallet: string;
-  lpAddress: string;
+  userWallet?: string;
+  lpAddress?: string;
   amountUSDC: number;
   amountBOB: number;
   rate: number;
@@ -51,10 +51,6 @@ async function fetchApi<T>(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-
-  if (process.env.NEXT_PUBLIC_API_KEY) {
-    headers["x-api-key"] = process.env.NEXT_PUBLIC_API_KEY;
-  }
 
   const response = await fetch(url, {
     ...options,
@@ -94,8 +90,13 @@ export async function generateQR(
   return result.data;
 }
 
-export async function getTrade(tradeId: number): Promise<TradeStatus> {
-  const result = await fetchApi<TradeStatus>(`/api/trade/${tradeId}`);
+export async function getTrade(
+  tradeId: number,
+  wallet: string,
+): Promise<TradeStatus> {
+  const result = await fetchApi<TradeStatus>(
+    `/api/trade/${tradeId}?wallet=${wallet}`,
+  );
   if (!result.success || !result.data) {
     throw new Error(result.error || "Failed to get trade");
   }

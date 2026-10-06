@@ -31,17 +31,18 @@ export function useQR() {
   const [timeLeft, setTimeLeft] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const walletRef = useRef<string>("");
 
   const generate = async (userWallet: string, quoteId: string) => {
     setLoading(true);
     setError(null);
+    walletRef.current = userWallet;
 
     try {
       const response = await fetch(`${API_BASE}/api/qr`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "",
         },
         body: JSON.stringify({
           userWallet,
@@ -72,9 +73,9 @@ export function useQR() {
 
     try {
       // Use dbTradeId to poll backend (Stereum trades have tradeId=0)
-      const response = await fetch(`${API_BASE}/api/trade/${qrData.dbTradeId}`, {
-        headers: { "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "" },
-      });
+      const response = await fetch(
+        `${API_BASE}/api/trade/${qrData.dbTradeId}?wallet=${walletRef.current}`,
+      );
       const result = await response.json();
       if (result.success && result.data) {
         setTrade(result.data);
@@ -122,9 +123,9 @@ export function useQR() {
 
     const pollTradeStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/trade/${qrData.dbTradeId}`, {
-          headers: { "x-api-key": process.env.NEXT_PUBLIC_API_KEY || "" },
-        });
+        const response = await fetch(
+          `${API_BASE}/api/trade/${qrData.dbTradeId}?wallet=${walletRef.current}`,
+        );
         const result = await response.json();
         if (result.success && result.data) {
           setTrade(result.data);

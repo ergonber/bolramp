@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PrismaClient } from "@prisma/client";
 import { AppError } from "../middleware/errorHandler.js";
 import { authMiddleware } from "../middleware/auth.js";
+import { apiLimiter } from "../middleware/rateLimit.js";
 import { normalizeWallet } from "../lib/wallet.js";
 import pino from "pino";
 
@@ -20,7 +21,7 @@ const historySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(20),
 });
 
-router.get("/history", async (req: Request, res: Response) => {
+router.get("/history", apiLimiter, async (req: Request, res: Response) => {
   const parsed = historySchema.safeParse(req.query);
 
   if (!parsed.success) {
@@ -34,17 +35,13 @@ router.get("/history", async (req: Request, res: Response) => {
   try {
     const [trades, total] = await Promise.all([
       prisma.trade.findMany({
-        where: {
-          OR: [{ userWallet: wallet }, { lpAddress: wallet }],
-        },
+        where: { userWallet: wallet },
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
       }),
       prisma.trade.count({
-        where: {
-          OR: [{ userWallet: wallet }, { lpAddress: wallet }],
-        },
+        where: { userWallet: wallet },
       }),
     ]);
 
@@ -54,8 +51,6 @@ router.get("/history", async (req: Request, res: Response) => {
         trades: trades.map((t: any) => ({
           tradeId: t.tradeId,
           status: t.status,
-          userWallet: t.userWallet,
-          lpAddress: t.lpAddress,
           amountUSDC: Number(t.amountUSDC),
           amountBOB: Number(t.amountBOB),
           rate: Number(t.rate),
@@ -77,45 +72,56 @@ router.get("/history", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/:id", async (req: Request, res: Response) => {
+const walletQuerySchema = z.object({
+  wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+});
+
+router.get("/:id", apiLimiter, async (req: Request, res: Response) => {
   const parsed = tradeIdSchema.safeParse(req.params);
 
   if (!parsed.success) {
     throw new AppError("Invalid trade ID", 400);
   }
 
+  // Privacy: a trade can only be read together with the owning wallet, so
+  // sequential IDs can't be enumerated to harvest user addresses.
+  const wp = walletQuerySchema.safeParse(req.query);
+  if (!wp.success) {
+    throw new AppError("wallet query parameter is required", 400);
+  }
+
   const { id } = parsed.data;
+  const wallet = normalizeWallet(wp.data.wallet);
 
+  let trade;
   try {
-    const trade = await prisma.trade.findFirst({
-      where: { id },
-    });
-
-    if (!trade) {
-      throw new AppError("Trade not found", 404);
-    }
-
-    res.json({
-      success: true,
-      data: {
-        dbTradeId: trade.id,
-        tradeId: trade.tradeId,
-        status: trade.status,
-        userWallet: trade.userWallet,
-        lpAddress: trade.lpAddress,
-        amountUSDC: trade.amountUSDC,
-        amountBOB: trade.amountBOB,
-        rate: trade.rate,
-        releaseTxHash: trade.releaseTxHash,
-        createdAt: trade.createdAt.toISOString(),
-        releasedAt: trade.releasedAt?.toISOString() || null,
-      },
-      timestamp: new Date().toISOString(),
+    trade = await prisma.trade.findFirst({
+      where: { id, userWallet: wallet },
     });
   } catch (error) {
     logger.error({ error, tradeId: id }, "Failed to fetch trade");
     throw new AppError("Failed to fetch trade", 500);
   }
+
+  if (!trade) {
+    throw new AppError("Trade not found", 404);
+  }
+
+  res.json({
+    success: true,
+    data: {
+      dbTradeId: trade.id,
+      tradeId: trade.tradeId,
+      status: trade.status,
+      amountUSDC: trade.amountUSDC,
+      amountBOB: trade.amountBOB,
+      rate: trade.rate,
+      releaseTxHash: trade.releaseTxHash,
+      createdAt: trade.createdAt.toISOString(),
+      releasedAt: trade.releasedAt?.toISOString() || null,
+    },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // ==================== SIMULATE PAYMENT (TEST ONLY) ====================
