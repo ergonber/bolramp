@@ -39,22 +39,28 @@ export default function RootLayout({
                 </div>
                 <span className="text-xl font-bold text-gradient">Bolramp</span>
               </a>
-              <nav className="flex gap-1 items-center">
+              <nav className="flex gap-1 items-center min-w-0 overflow-x-auto">
+                <a
+                  href="/como-funciona"
+                  className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200 whitespace-nowrap"
+                >
+                  Cómo funciona
+                </a>
                 <a
                   href="/kyc"
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
+                  className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200 whitespace-nowrap"
                 >
                   KYC
                 </a>
                 <a
                   href="/comprar"
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
+                  className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200 whitespace-nowrap"
                 >
                   Comprar
                 </a>
                 <a
                   href="/dashboard"
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200"
+                  className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-all duration-200 whitespace-nowrap"
                 >
                   Historial
                 </a>
