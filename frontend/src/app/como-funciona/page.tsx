@@ -230,14 +230,34 @@ export default function ComoFuncionaPage() {
 
       <section className="glass-card rounded-3xl p-6 sm:p-8 mb-8">
         <h2 className="text-xl font-semibold text-white mb-5">Preguntas frecuentes</h2>
-        <dl className="space-y-5">
+        <div className="space-y-3">
           {FAQ.map((item) => (
-            <div key={item.q}>
-              <dt className="text-slate-200 font-medium mb-1">{item.q}</dt>
-              <dd className="text-slate-400 text-sm sm:text-base leading-relaxed">{item.a}</dd>
-            </div>
+            <details
+              key={item.q}
+              className="group rounded-2xl border border-white/10 bg-white/5 overflow-hidden"
+            >
+              <summary className="flex items-center justify-between gap-3 cursor-pointer select-none px-4 py-3 text-slate-200 font-medium list-none [&::-webkit-details-marker]:hidden">
+                <span>{item.q}</span>
+                <svg
+                  className="w-4 h-4 shrink-0 text-slate-400 transition-transform duration-200 group-open:rotate-180"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 9l6 6 6-6"
+                  />
+                </svg>
+              </summary>
+              <p className="px-4 pb-4 text-slate-400 text-sm sm:text-base leading-relaxed">
+                {item.a}
+              </p>
+            </details>
           ))}
-        </dl>
+        </div>
       </section>
 
       <section className="glass-card rounded-3xl p-6 sm:p-8 text-center">
