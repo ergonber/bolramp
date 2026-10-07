@@ -11,14 +11,14 @@ export const metadata: Metadata = {
  * (ejemplo: "https://www.youtube.com/watch?v=XXXXXXXXXXX").
  * Dejala vacia ("") mientras no tengas la URL: el enlace no se mostrara.
  */
-const METAMASK_VIDEO_URL = ""; // TODO_VIDEO_METAMASK
+const METAMASK_VIDEO_URL = "https://www.youtube.com/watch?v=9QcQWE-BymY"; // TODO_VIDEO_METAMASK
 
 /**
  * TODO_VIDEO_RABBY: pega aqui la URL completa del video de YouTube
  * (ejemplo: "https://www.youtube.com/watch?v=XXXXXXXXXXX").
  * Dejala vacia ("") mientras no tengas la URL: el enlace no se mostrara.
  */
-const RABBY_VIDEO_URL = ""; // TODO_VIDEO_RABBY
+const RABBY_VIDEO_URL = "https://www.youtube.com/watch?v=a5byYhjn-kE"; // TODO_VIDEO_RABBY
 
 const WALLET_SETUP_STEPS = [
   "Instala la extensión en tu navegador (o descarga la app móvil).",
