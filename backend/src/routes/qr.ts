@@ -4,6 +4,7 @@ import { StereumService } from "../services/stereum.js";
 import { qrLimiter } from "../middleware/rateLimit.js";
 import { PrismaClient } from "@prisma/client";
 import { normalizeWallet } from "../lib/wallet.js";
+import { getEnv } from "../config/env.js";
 import crypto from "crypto";
 import { ethers } from "ethers";
 import pino from "pino";
@@ -35,15 +36,13 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
 
   const { quoteId } = parsed.data;
   const userWallet = normalizeWallet(parsed.data.userWallet);
+  const env = getEnv();
 
   try {
     const stereum = new StereumService();
 
     let order;
     let isMock = false;
-
-    const { getEnv } = await import("../config/env.js");
-    const env = getEnv();
 
     try {
       order = await stereum.confirmOrder({
@@ -52,8 +51,19 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
         network: "POLYGON",
       });
     } catch (stereumError) {
-      // Stereum sandbox failed — fall back to mock mode
-      logger.warn({ error: stereumError, quoteId }, "Stereum order failed, using mock mode");
+      logger.error({ error: stereumError, quoteId }, "Stereum order failed");
+
+      if (env.NODE_ENV === "production") {
+        res.status(502).json({
+          success: false,
+          error: "No se pudo generar el QR. Intenta de nuevo.",
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
+
+      // Dev/test only — Stereum sandbox failed, fall back to mock mode
+      logger.warn({ quoteId }, "Using mock mode (non-production)");
 
       isMock = true;
 
@@ -137,7 +147,7 @@ router.post("/", qrLimiter, async (req: Request, res: Response) => {
     logger.error({ error, userWallet, quoteId }, "Failed to create order");
     res.status(500).json({
       success: false,
-      error: process.env.NODE_ENV === "production" ? "Failed to generate QR" : (error instanceof Error ? error.message : "Failed to generate QR"),
+      error: env.NODE_ENV === "production" ? "Failed to generate QR" : (error instanceof Error ? error.message : "Failed to generate QR"),
       timestamp: new Date().toISOString(),
     });
   }
