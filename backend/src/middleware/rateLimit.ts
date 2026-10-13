@@ -32,6 +32,7 @@ function clientKeyGenerator(req: Request): string {
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 60,
+  keyGenerator: clientKeyGenerator,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
