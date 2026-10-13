@@ -71,7 +71,7 @@ export default function RootLayout({
           <footer className="border-t border-white/5 py-6 mt-auto">
             <div className="max-w-6xl mx-auto px-4 text-center space-y-2">
               <p className="text-xs text-slate-500">
-                Bolramp no custodia fondos. Hecho por ethbol - Cochabamba-Bolivia.
+                Bolramp no custodia fondos. Hecho por ethbol.
               </p>
               <p className="text-xs text-slate-600">
                 Todos los derechos reservados &copy; {new Date().getFullYear()}
